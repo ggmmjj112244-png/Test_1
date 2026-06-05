@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>차트영웅 (Chart Hero) - 주식 투자 & 차트 분석 전문가</title>
+    <style>
+        :root {
+            --primary-color: #e63946;
+            --secondary-color: #1d3557;
+            --accent-color: #f1faee;
+            --dark-bg: #0b0c10;
+            --card-bg: #1f2833;
+            --text-gold: #c5c6c7;
+            --bright-gold: #66fcf1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+            background-color: var(--dark-bg);
+            color: #ffffff;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Hero Section */
+        header {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1611974717482-5831671c841a?auto=format&fit=crop&q=80&w=2070') no-repeat center center/cover;
+        }
+
+        .hero-content h1 {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            letter-spacing: -1px;
+        }
+
+        .hero-content h1 span {
+            color: var(--primary-color);
+        }
+
+        .hero-content p {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            color: var(--text-gold);
+        }
+
+        .cta-button {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+
+        .cta-button:hover {
+            transform: scale(1.05);
+            background-color: #c1121f;
+        }
+
+        /* Stats Section */
+        .stats {
+            padding: 60px 0;
+            background-color: var(--card-bg);
+            text-align: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+        }
+
+        .stat-item h2 {
+            font-size: 2.5rem;
+            color: var(--bright-gold);
+        }
+
+        .stat-item p {
+            color: var(--text-gold);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 100px 0;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 60px;
+            font-size: 2.5rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+        }
+
+        .feature-card {
+            background-color: var(--card-bg);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .feature-card h3 {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+
+        /* Footer */
+        footer {
+            padding: 50px 0;
+            text-align: center;
+            border-top: 1px solid #333;
+            color: var(--text-gold);
+        }
+
+        @media (max-width: 768px) {
+            .hero-content h1 {
+                font-size: 2.5rem;
+            }
+            .hero-content p {
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container">
+            <div class="hero-content">
+                <h1>자본시장의 길잡이, <span>차트영웅</span></h1>
+                <p>18만 구독자가 선택한 주식 투자 실전 매매 기법</p>
+                <a href="https://www.youtube.com/@%EC%B0%A8%ED%8A%B8%EC%98%81%EC%9B%85" target="_blank" class="cta-button">채널 방문하기</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="stats">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h2>184K+</h2>
+                    <p>구독자 수</p>
+                </div>
+                <div class="stat-item">
+                    <h2>실전</h2>
+                    <p>매매 기법 전수</p>
+                </div>
+                <div class="stat-item">
+                    <h2>NEXT</h2>
+                    <p>머니 분석</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="container">
+            <h2 class="section-title">주요 콘텐츠</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>기술적 분석</h3>
+                    <p>캔들, 지지/저항, 이동평균선을 활용한 정밀한 차트 해석 능력을 기릅니다.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>실전 데이트레이딩</h3>
+                    <p>시초가 매매, 상한가 매매 등 높은 확률의 단기 수익 전략을 공유합니다.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>시장 분석 & 전망</h3>
+                    <p>HBM, AI 등 주도 섹터 분석과 코스피/코스닥 시장 흐름을 짚어줍니다.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>투자 마인드셋</h3>
+                    <p>고수들의 매매 습관과 리스크 관리법을 통해 꾸준한 수익을 내는 법을 배웁니다.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 차트영웅 (Chart Hero). All Rights Reserved.</p>
+            <p>본 사이트는 차트영웅 유튜브 채널 소개를 위해 제작되었습니다.</p>
+        </div>
+    </footer>
+
+</body>
+</html>
