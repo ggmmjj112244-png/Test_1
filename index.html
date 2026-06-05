@@ -3,215 +3,364 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>차트영웅 (Chart Hero) - 주식 투자 & 차트 분석 전문가</title>
+    <title>로또 추첨 시뮬레이터 (1-100)</title>
     <style>
         :root {
-            --primary-color: #e63946;
-            --secondary-color: #1d3557;
-            --accent-color: #f1faee;
+            --primary-color: #66fcf1;
+            --secondary-color: #45a29e;
             --dark-bg: #0b0c10;
             --card-bg: #1f2833;
-            --text-gold: #c5c6c7;
-            --bright-gold: #66fcf1;
+            --text-color: #c5c6c7;
+            --accent-red: #e63946;
         }
 
-        * {
+        body, html {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+            height: 100%;
+            font-family: 'Pretendard', sans-serif;
             background-color: var(--dark-bg);
             color: #ffffff;
-            line-height: 1.6;
+            overflow: hidden;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        /* Hero Section */
-        header {
+        .main-container {
+            display: flex;
             height: 100vh;
+            width: 100vw;
+        }
+
+        /* Drawing Cage Area */
+        .simulation-area {
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            text-align: center;
-            background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1611974717482-5831671c841a?auto=format&fit=crop&q=80&w=2070') no-repeat center center/cover;
+            position: relative;
         }
 
-        .hero-content h1 {
-            font-size: 4rem;
-            margin-bottom: 20px;
-            letter-spacing: -1px;
+        #lotto-canvas {
+            background: radial-gradient(circle, #1f2833 0%, #0b0c10 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 50px rgba(102, 252, 241, 0.2);
+            border: 2px solid var(--secondary-color);
         }
 
-        .hero-content h1 span {
-            color: var(--primary-color);
+        /* Sidebar Controls */
+        .sidebar {
+            width: 350px;
+            background-color: var(--card-bg);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #333;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+            z-index: 10;
         }
 
-        .hero-content p {
+        h1 {
             font-size: 1.5rem;
             margin-bottom: 30px;
-            color: var(--text-gold);
-        }
-
-        .cta-button {
-            display: inline-block;
-            background-color: var(--primary-color);
-            color: white;
-            padding: 15px 40px;
-            font-size: 1.2rem;
-            text-decoration: none;
-            border-radius: 50px;
-            font-weight: bold;
-            transition: transform 0.3s ease, background-color 0.3s ease;
-        }
-
-        .cta-button:hover {
-            transform: scale(1.05);
-            background-color: #c1121f;
-        }
-
-        /* Stats Section */
-        .stats {
-            padding: 60px 0;
-            background-color: var(--card-bg);
-            text-align: center;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 30px;
-        }
-
-        .stat-item h2 {
-            font-size: 2.5rem;
-            color: var(--bright-gold);
-        }
-
-        .stat-item p {
-            color: var(--text-gold);
-        }
-
-        /* Features Section */
-        .features {
-            padding: 100px 0;
-        }
-
-        .section-title {
-            text-align: center;
-            margin-bottom: 60px;
-            font-size: 2.5rem;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 40px;
-        }
-
-        .feature-card {
-            background-color: var(--card-bg);
-            padding: 40px;
-            border-radius: 15px;
-            text-align: center;
-            transition: transform 0.3s ease;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-10px);
-        }
-
-        .feature-card h3 {
-            margin-bottom: 15px;
             color: var(--primary-color);
-        }
-
-        /* Footer */
-        footer {
-            padding: 50px 0;
             text-align: center;
-            border-top: 1px solid #333;
-            color: var(--text-gold);
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
         }
 
-        @media (max-width: 768px) {
-            .hero-content h1 {
-                font-size: 2.5rem;
-            }
-            .hero-content p {
-                font-size: 1.1rem;
-            }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #draw-btn {
+            background-color: var(--primary-color);
+            color: var(--dark-bg);
+        }
+
+        #draw-btn:hover {
+            background-color: #45e0d8;
+            transform: translateY(-2px);
+        }
+
+        #draw-btn:active {
+            transform: translateY(0);
+        }
+
+        #reset-btn {
+            background-color: transparent;
+            color: var(--text-color);
+            border: 1px solid var(--text-color);
+        }
+
+        #reset-btn:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        /* Results Display */
+        .results-container {
+            flex: 1;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .results-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .results-container::-webkit-scrollbar-thumb {
+            background: var(--secondary-color);
+            border-radius: 10px;
+        }
+
+        .drawn-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            margin: 5px;
+            border-radius: 50%;
+            background-color: var(--secondary-color);
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        #last-draw-large {
+            font-size: 5rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            text-align: center;
+            margin: 20px 0;
+            text-shadow: 0 0 20px rgba(102, 252, 241, 0.5);
+            min-height: 120px;
+        }
+
+        .stats {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: var(--text-color);
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="container">
-            <div class="hero-content">
-                <h1>자본시장의 길잡이, <span>차트영웅</span></h1>
-                <p>18만 구독자가 선택한 주식 투자 실전 매매 기법</p>
-                <a href="https://www.youtube.com/@%EC%B0%A8%ED%8A%B8%EC%98%81%EC%9B%85" target="_blank" class="cta-button">채널 방문하기</a>
+    <div class="main-container">
+        <!-- Animation Cage -->
+        <div class="simulation-area">
+            <canvas id="lotto-canvas"></canvas>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h1>로또 추첨 (1-100)</h1>
+            
+            <div id="last-draw-large">-</div>
+            
+            <div class="controls">
+                <button id="draw-btn">추첨</button>
+                <button id="reset-btn">리셋</button>
+            </div>
+
+            <div class="results-container" id="results">
+                <!-- Drawn numbers will appear here -->
+            </div>
+
+            <div class="stats">
+                남은 공: <span id="remaining-count">100</span>개
             </div>
         </div>
-    </header>
+    </div>
 
-    <section class="stats">
-        <div class="container">
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <h2>184K+</h2>
-                    <p>구독자 수</p>
-                </div>
-                <div class="stat-item">
-                    <h2>실전</h2>
-                    <p>매매 기법 전수</p>
-                </div>
-                <div class="stat-item">
-                    <h2>NEXT</h2>
-                    <p>머니 분석</p>
-                </div>
-            </div>
-        </div>
-    </section>
+    <script>
+        const canvas = document.getElementById('lotto-canvas');
+        const ctx = canvas.getContext('2d');
+        const drawBtn = document.getElementById('draw-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const resultsArea = document.getElementById('results');
+        const lastDrawDisplay = document.getElementById('last-draw-large');
+        const remainingDisplay = document.getElementById('remaining-count');
 
-    <section class="features">
-        <div class="container">
-            <h2 class="section-title">주요 콘텐츠</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <h3>기술적 분석</h3>
-                    <p>캔들, 지지/저항, 이동평균선을 활용한 정밀한 차트 해석 능력을 기릅니다.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>실전 데이트레이딩</h3>
-                    <p>시초가 매매, 상한가 매매 등 높은 확률의 단기 수익 전략을 공유합니다.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>시장 분석 & 전망</h3>
-                    <p>HBM, AI 등 주도 섹터 분석과 코스피/코스닥 시장 흐름을 짚어줍니다.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>투자 마인드셋</h3>
-                    <p>고수들의 매매 습관과 리스크 관리법을 통해 꾸준한 수익을 내는 법을 배웁니다.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+        // Configuration
+        const BALL_COUNT = 100;
+        const BALL_RADIUS = 10;
+        const CAGE_RADIUS = 300;
+        let balls = [];
+        let drawnNumbers = [];
+        let isAnimating = true;
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2026 차트영웅 (Chart Hero). All Rights Reserved.</p>
-            <p>본 사이트는 차트영웅 유튜브 채널 소개를 위해 제작되었습니다.</p>
-        </div>
-    </footer>
+        class Ball {
+            constructor(number) {
+                this.number = number;
+                this.radius = BALL_RADIUS;
+                this.reset();
+            }
 
+            reset() {
+                // Random position within the cage
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * (CAGE_RADIUS - this.radius - 10);
+                this.x = dist * Math.cos(angle);
+                this.y = dist * Math.sin(angle);
+                
+                // Random velocity
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                
+                // Color based on number
+                this.color = `hsl(${(this.number * 3.6) % 360}, 70%, 60%)`;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Collision with cage wall (circular)
+                const dist = Math.sqrt(this.x * this.x + this.y * this.y);
+                if (dist + this.radius > CAGE_RADIUS) {
+                    const nx = this.x / dist;
+                    const ny = this.y / dist;
+                    
+                    // Reflect velocity vector
+                    const dot = this.vx * nx + this.vy * ny;
+                    this.vx = (this.vx - 2 * dot * nx) * 0.99;
+                    this.vy = (this.vy - 2 * dot * ny) * 0.99;
+
+                    // Push back inside
+                    this.x = nx * (CAGE_RADIUS - this.radius);
+                    this.y = ny * (CAGE_RADIUS - this.radius);
+                }
+
+                // Air friction
+                this.vx *= 0.999;
+                this.vy *= 0.999;
+
+                // Subtle "shaking" effect like a real cage
+                this.vx += (Math.random() - 0.5) * 0.2;
+                this.vy += (Math.random() - 0.5) * 0.2;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x + canvas.width/2, this.y + canvas.height/2, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.closePath();
+
+                // Number text (optional for small balls, but nice if visible)
+                if (BALL_RADIUS > 8) {
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 8px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(this.number, this.x + canvas.width/2, this.y + canvas.height/2);
+                }
+            }
+        }
+
+        function init() {
+            canvas.width = 800;
+            canvas.height = 800;
+            
+            balls = [];
+            drawnNumbers = [];
+            resultsArea.innerHTML = '';
+            lastDrawDisplay.textContent = '-';
+            remainingDisplay.textContent = BALL_COUNT;
+
+            for (let i = 1; i <= BALL_COUNT; i++) {
+                balls.push(new Ball(i));
+            }
+            
+            if (!isAnimating) {
+                isAnimating = true;
+                animate();
+            }
+        }
+
+        function animate() {
+            if (!isAnimating) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Cage Outline
+            ctx.beginPath();
+            ctx.arc(canvas.width/2, canvas.height/2, CAGE_RADIUS, 0, Math.PI * 2);
+            ctx.strokeStyle = '#45a29e';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+            ctx.closePath();
+
+            // Update and Draw Balls
+            balls.forEach(ball => {
+                ball.update();
+                ball.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        function drawNumber() {
+            if (balls.length === 0) {
+                alert('모든 공이 추첨되었습니다!');
+                return;
+            }
+
+            // Pick a random index
+            const index = Math.floor(Math.random() * balls.length);
+            const pickedBall = balls.splice(index, 1)[0];
+            const num = pickedBall.number;
+
+            drawnNumbers.push(num);
+            
+            // UI Update
+            lastDrawDisplay.textContent = num;
+            remainingDisplay.textContent = balls.length;
+
+            const numEl = document.createElement('div');
+            numEl.className = 'drawn-number';
+            numEl.textContent = num;
+            numEl.style.backgroundColor = pickedBall.color;
+            resultsArea.appendChild(numEl);
+            
+            // Scroll to bottom
+            resultsArea.scrollTop = resultsArea.scrollHeight;
+
+            // Flash effect on canvas
+            ctx.fillStyle = 'rgba(102, 252, 241, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        drawBtn.addEventListener('click', drawNumber);
+        resetBtn.addEventListener('click', init);
+
+        // Responsive resize
+        window.addEventListener('resize', () => {
+            // Adjust canvas or UI if needed, but keeping fixed for simplicity
+        });
+
+        init();
+    </script>
 </body>
 </html>
