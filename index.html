@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>로또 추첨 시뮬레이터 (1-100)</title>
+    <title>랜덤 숫자 뽑기 (1-100)</title>
     <style>
         :root {
             --primary-color: #66fcf1;
@@ -174,7 +174,7 @@
 
         <!-- Sidebar -->
         <div class="sidebar">
-            <h1>로또 추첨 (1-100)</h1>
+            <h1>랜덤 숫자 뽑기 (1-100)</h1>
             
             <div id="last-draw-large">-</div>
             
@@ -204,8 +204,8 @@
 
         // Configuration
         const BALL_COUNT = 100;
-        const BALL_RADIUS = 10;
-        const CAGE_RADIUS = 300;
+        const BALL_RADIUS = 15;
+        const CAGE_RADIUS = 350;
         let balls = [];
         let drawnNumbers = [];
         let isAnimating = true;
@@ -220,13 +220,13 @@
             reset() {
                 // Random position within the cage
                 const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * (CAGE_RADIUS - this.radius - 10);
+                const dist = Math.random() * (CAGE_RADIUS - this.radius - 20);
                 this.x = dist * Math.cos(angle);
                 this.y = dist * Math.sin(angle);
                 
                 // Random velocity
-                this.vx = (Math.random() - 0.5) * 8;
-                this.vy = (Math.random() - 0.5) * 8;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
                 
                 // Color based on number
                 this.color = `hsl(${(this.number * 3.6) % 360}, 70%, 60%)`;
@@ -244,8 +244,8 @@
                     
                     // Reflect velocity vector
                     const dot = this.vx * nx + this.vy * ny;
-                    this.vx = (this.vx - 2 * dot * nx) * 0.99;
-                    this.vy = (this.vy - 2 * dot * ny) * 0.99;
+                    this.vx = (this.vx - 2 * dot * nx) * 0.95;
+                    this.vy = (this.vy - 2 * dot * ny) * 0.95;
 
                     // Push back inside
                     this.x = nx * (CAGE_RADIUS - this.radius);
@@ -253,29 +253,38 @@
                 }
 
                 // Air friction
-                this.vx *= 0.999;
-                this.vy *= 0.999;
+                this.vx *= 0.998;
+                this.vy *= 0.998;
 
-                // Subtle "shaking" effect like a real cage
-                this.vx += (Math.random() - 0.5) * 0.2;
-                this.vy += (Math.random() - 0.5) * 0.2;
+                // Constant agitation like a real cage
+                this.vx += (Math.random() - 0.5) * 0.4;
+                this.vy += (Math.random() - 0.5) * 0.4;
             }
 
             draw() {
-                ctx.beginPath();
-                ctx.arc(this.x + canvas.width/2, this.y + canvas.height/2, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.fill();
-                ctx.closePath();
+                const drawX = this.x + canvas.width/2;
+                const drawY = this.y + canvas.height/2;
 
-                // Number text (optional for small balls, but nice if visible)
-                if (BALL_RADIUS > 8) {
-                    ctx.fillStyle = 'white';
-                    ctx.font = 'bold 8px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(this.number, this.x + canvas.width/2, this.y + canvas.height/2);
-                }
+                ctx.beginPath();
+                ctx.arc(drawX, drawY, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.closePath();
+                
+                // Reset shadow for text
+                ctx.shadowBlur = 0;
+
+                // Number text
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.number, drawX, drawY);
             }
         }
 
