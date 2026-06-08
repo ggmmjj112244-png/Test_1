@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기업 정보 검색 도구</title>
+    <style>
+        /* 변수 설정 */
+        :root {
+            --bg-color: #FFF8F0;
+            --text-color: #3D2B1F;
+            --point-color: #E07A2F;
+            --max-width: 1200px;
+        }
+
+        /* 초기화 및 기본 스타일 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* 타이틀 및 목차 정렬 (왼쪽) */
+        h1, h2, h3, .list-header {
+            text-align: left;
+            margin-bottom: 1.5rem;
+        }
+
+        /* 본문 내용 중앙 정렬 */
+        .content-center {
+            text-align: center;
+        }
+
+        /* 섹션 상하 여백 */
+        section {
+            padding: 48px 0;
+        }
+
+        /* 검색창 섹션 */
+        .search-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 40vh;
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 18px 25px;
+            font-size: 1.2rem;
+            border: 2px solid var(--point-color);
+            border-radius: 50px;
+            background-color: #fff;
+            color: var(--text-color);
+            outline: none;
+        }
+
+        .search-button {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 10px 25px;
+            background-color: var(--point-color);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.3s;
+        }
+
+        .search-button:hover {
+            opacity: 0.9;
+        }
+
+        /* 결과 영역 (초기 숨김) */
+        #result-area {
+            display: none;
+        }
+
+        /* 정보 카드 스타일 */
+        .card {
+            background: #fff;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(61, 43, 31, 0.05);
+            margin-bottom: 24px;
+        }
+
+        /* 52주 가격 슬라이더 */
+        .range-slider-container {
+            margin: 30px 0;
+        }
+
+        .range-slider {
+            position: relative;
+            height: 12px;
+            background: #e0e0e0;
+            border-radius: 6px;
+            margin: 40px 0 20px 0;
+        }
+
+        .range-fill {
+            position: absolute;
+            height: 100%;
+            background: var(--point-color);
+            border-radius: 6px;
+        }
+
+        .range-marker {
+            position: absolute;
+            top: -30px;
+            transform: translateX(-50%);
+            background: var(--point-color);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .range-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        /* 데이터 그리드 (시총, PER 등) */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .data-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .data-label {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .data-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        /* 테이블 공통 스타일 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            text-align: center;
+        }
+
+        th {
+            background-color: rgba(224, 122, 47, 0.05);
+            font-weight: bold;
+        }
+
+        /* 컨센서스 스타일 */
+        .consensus-bar {
+            display: flex;
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .bar-buy { background: #ff4d4d; width: 70%; }
+        .bar-hold { background: #ffd11a; width: 20%; }
+        .bar-sell { background: #4d79ff; width: 10%; }
+
+        /* 반응형 설정 */
+        @media (max-width: 768px) {
+            body { font-size: 0.9rem; }
+            h1 { font-size: 1.5rem; }
+            h2 { font-size: 1.3rem; }
+            
+            .data-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .sidebar-layout {
+                flex-direction: column;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .grid-desktop {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 40px;
+            }
+        }
+
+        /* 유틸리티 */
+        .mb-48 { margin-bottom: 48px; }
+        .mt-48 { margin-top: 48px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- 검색 섹션 -->
+        <section class="search-section">
+            <h1 class="content-center">기업 정보 검색</h1>
+            <div class="search-box">
+                <input type="text" id="company-input" class="search-input" placeholder="기업명을 입력하세요 (예: 삼성전자)">
+                <button id="search-btn" class="search-button">검색</button>
+            </div>
+            <p class="content-center mt-48" style="font-size: 0.9rem; color: #666;">
+                * 테스트 모드 입니다. 검색 시 실제 데이터가 아닌 테스트 수치가 노출됩니다.
+            </p>
+        </section>
+
+        <!-- 결과 영역 -->
+        <div id="result-area">
+            
+            <!-- 기업 개요 및 52주 위치 -->
+            <section id="overview-section">
+                <h2>기업개요</h2>
+                <div class="card">
+                    <p id="company-desc">
+                        한국 및 DX부문, DS부문 등의 사업을 영위하고 있는 글로벌 IT 기업입니다. 
+                        메모리 반도체, 스마트폰, TV 등 다양한 분야에서 세계 시장 점유율 1위를 기록하고 있습니다.
+                    </p>
+                </div>
+
+                <h2 class="mt-48">52주 가격 위치</h2>
+                <div class="card">
+                    <div class="range-slider-container">
+                        <div class="range-labels">
+                            <span>52주 최저: 54,100원</span>
+                            <span>52주 최고: 88,800원</span>
+                        </div>
+                        <div class="range-slider">
+                            <div class="range-fill" style="width: 65%;"></div>
+                            <div class="range-marker" style="left: 65%;">현재가: 76,700원</div>
+                        </div>
+                        <p class="content-center" style="font-size: 0.9rem;">최고가 대비 -13.6% 위치</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 주요 지표 그리드 -->
+            <section class="grid-desktop">
+                <div>
+                    <h2>시장 주요 지표</h2>
+                    <div class="card">
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <span class="data-label">시가총액</span>
+                                <span class="data-value">457.9조원</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">PER</span>
+                                <span class="data-value">36.52배</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">PBR</span>
+                                <span class="data-value">1.45배</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">추정 PER</span>
+                                <span class="data-value">12.4배</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">배당수익률</span>
+                                <span class="data-value">1.88%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2>투자의견 컨센서스</h2>
+                    <div class="card content-center">
+                        <h3 style="color: var(--point-color); text-align: center;">4.0 (매수)</h3>
+                        <div class="consensus-bar">
+                            <div class="bar-buy"></div>
+                            <div class="bar-hold"></div>
+                            <div class="bar-sell"></div>
+                        </div>
+                        <p style="font-size: 0.85rem; color: #666;">최근 3개월 증권사 추정치 평균</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 투자자 동향 -->
+            <section>
+                <h2>투자자별 매매동향 (최근 5일)</h2>
+                <div class="card" style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>날짜</th>
+                                <th>외국인</th>
+                                <th>기관</th>
+                                <th>개인</th>
+                                <th>등락률</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>06.05</td>
+                                <td style="color: #ff4d4d;">+1,200</td>
+                                <td style="color: #4d79ff;">-800</td>
+                                <td style="color: #4d79ff;">-400</td>
+                                <td style="color: #ff4d4d;">+1.2%</td>
+                            </tr>
+                            <tr>
+                                <td>06.04</td>
+                                <td style="color: #4d79ff;">-500</td>
+                                <td style="color: #ff4d4d;">+200</td>
+                                <td style="color: #ff4d4d;">+300</td>
+                                <td style="color: #4d79ff;">-0.5%</td>
+                            </tr>
+                            <tr>
+                                <td>06.03</td>
+                                <td style="color: #ff4d4d;">+800</td>
+                                <td style="color: #ff4d4d;">+400</td>
+                                <td style="color: #4d79ff;">-1,200</td>
+                                <td style="color: #ff4d4d;">+2.1%</td>
+                            </tr>
+                            <tr>
+                                <td>05.31</td>
+                                <td style="color: #4d79ff;">-200</td>
+                                <td style="color: #4d79ff;">-100</td>
+                                <td style="color: #ff4d4d;">+300</td>
+                                <td style="color: #4d79ff;">-0.2%</td>
+                            </tr>
+                            <tr>
+                                <td>05.30</td>
+                                <td style="color: #ff4d4d;">+1,500</td>
+                                <td style="color: #ff4d4d;">+600</td>
+                                <td style="color: #4d79ff;">-2,100</td>
+                                <td style="color: #ff4d4d;">+3.5%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 재무제표 -->
+            <section class="mb-48">
+                <h2>주요 재무제표 (연간)</h2>
+                <div class="card" style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>구분</th>
+                                <th>2023.12</th>
+                                <th>2022.12</th>
+                                <th>2021.12</th>
+                                <th>전년대비</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>매출액</td>
+                                <td>258.9조</td>
+                                <td>302.2조</td>
+                                <td>279.6조</td>
+                                <td style="color: #4d79ff;">-14.3%</td>
+                            </tr>
+                            <tr>
+                                <td>영업이익</td>
+                                <td>6.5조</td>
+                                <td>43.3조</td>
+                                <td>51.6조</td>
+                                <td style="color: #4d79ff;">-84.9%</td>
+                            </tr>
+                            <tr>
+                                <td>당기순이익</td>
+                                <td>15.4조</td>
+                                <td>55.6조</td>
+                                <td>39.9조</td>
+                                <td style="color: #4d79ff;">-72.2%</td>
+                            </tr>
+                            <tr>
+                                <td>ROE</td>
+                                <td>4.15%</td>
+                                <td>17.07%</td>
+                                <td>13.92%</td>
+                                <td style="color: #4d79ff;">-12.92p</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const searchBtn = document.getElementById('search-btn');
+        const companyInput = document.getElementById('company-input');
+        const resultArea = document.getElementById('result-area');
+
+        searchBtn.addEventListener('click', () => {
+            const query = companyInput.value.trim();
+            if (query === '') {
+                alert('기업명을 입력해주세요.');
+                return;
+            }
+
+            // 시뮬레이션: 검색 시 결과 영역을 보여줌
+            resultArea.style.display = 'block';
+            
+            // 결과 영역으로 스크롤
+            window.scrollTo({
+                top: resultArea.offsetTop - 50,
+                behavior: 'smooth'
+            });
+        });
+
+        // 엔터키 지원
+        companyInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchBtn.click();
+            }
+        });
+    </script>
+</body>
+</html>
