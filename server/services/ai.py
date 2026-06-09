@@ -8,17 +8,39 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 class AIService:
     def __init__(self):
+        self.model = None
         if GEMINI_API_KEY:
-            genai.configure(api_key=GEMINI_API_KEY)
-            # 모델명을 명시적으로 지정
-            self.model = genai.GenerativeModel('models/gemini-1.5-flash')
-        else:
-            self.model = None
+            try:
+                genai.configure(api_key=GEMINI_API_KEY)
+                # 가용한 모델 목록을 출력하여 로그에서 확인 가능하도록 함
+                print("--- Available Gemini Models ---")
+                available_models = []
+                for m in genai.list_models():
+                    if 'generateContent' in m.supported_generation_methods:
+                        print(f"Model: {m.name}")
+                        available_models.append(m.name)
+                
+                # 우선순위에 따른 모델 선택
+                target_models = ['models/gemini-1.5-flash', 'gemini-1.5-flash', 'models/gemini-pro']
+                selected_model = None
+                for tm in target_models:
+                    if tm in available_models or any(tm in am for am in available_models):
+                        selected_model = tm
+                        break
+                
+                if not selected_model:
+                    selected_model = 'gemini-1.5-flash' # Fallback
+                
+                print(f"Selected Model: {selected_model}")
+                self.model = genai.GenerativeModel(selected_model)
+            except Exception as e:
+                print(f"Error initializing Gemini: {e}")
+                self.model = None
 
     def summarize_corporate_info_stream(self, corp_name, dart_content, news_content):
         """DART와 뉴스 데이터를 바탕으로 기업 정보를 실시간으로 요약합니다."""
         if not self.model:
-            yield "Gemini API Key가 설정되지 않았습니다."
+            yield "Gemini AI 서비스를 초기화할 수 없습니다. API 키와 모델 권한을 확인해주세요."
             return
 
         prompt = f"""
