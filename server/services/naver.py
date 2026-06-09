@@ -21,7 +21,7 @@ class NaverService:
         return re.sub(clean, '', text)
 
     def search_news(self, query, display=15):
-        """네이버 뉴스 검색 결과를 가져옵니다. 최신순(date)으로 정렬하여 신선도를 높임."""
+        """네이버 뉴스 검색 결과를 가져옵니다. 정확도순(sim)으로 정렬."""
         url = "https://openapi.naver.com/v1/search/news.json"
         headers = {
             "X-Naver-Client-Id": self.client_id,
@@ -30,7 +30,7 @@ class NaverService:
         params = {
             "query": query,
             "display": display,
-            "sort": "date"  # 'sim'(유사도) 대신 'date'(최신순) 사용
+            "sort": "sim"  # 'date' 대신 'sim'(정확도순) 사용
         }
         try:
             response = requests.get(url, headers=headers, params=params)
