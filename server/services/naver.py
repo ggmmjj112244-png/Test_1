@@ -4,8 +4,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID", "").strip()
-NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET", "").strip()
+# 따옴표와 공백을 모두 제거하는 함수
+def clean_env_var(value):
+    if not value: return ""
+    return value.strip("'\" ")
+
+NAVER_CLIENT_ID = clean_env_var(os.getenv("NAVER_CLIENT_ID", ""))
+NAVER_CLIENT_SECRET = clean_env_var(os.getenv("NAVER_CLIENT_SECRET", ""))
 
 import re
 
@@ -13,6 +18,11 @@ class NaverService:
     def __init__(self):
         self.client_id = NAVER_CLIENT_ID
         self.client_secret = NAVER_CLIENT_SECRET
+        # 보안을 위해 앞 3글자만 로그에 출력하여 사용자 확인 지원
+        id_preview = (self.client_id[:3] + "***") if self.client_id else "None"
+        secret_preview = (self.client_secret[:3] + "***") if self.client_secret else "None"
+        print(f"--- Naver ID Loaded: {id_preview} (Length: {len(self.client_id)})")
+        print(f"--- Naver Secret Loaded: {secret_preview} (Length: {len(self.client_secret)})")
 
     def _clean_html(self, text):
         """HTML 태그 제거"""
