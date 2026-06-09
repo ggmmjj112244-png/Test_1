@@ -1,7 +1,7 @@
 import base64
 import requests
 
-token = "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"
+token = "YOUR_GITHUB_TOKEN_HERE"
 with open('index.html', 'rb') as f:
     content = base64.b64encode(f.read()).decode()
 
