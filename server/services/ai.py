@@ -8,39 +8,61 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 class AIService:
     def __init__(self):
+        self._initialize_model()
+
+    def _initialize_model(self):
         self.model = None
-        if GEMINI_API_KEY:
-            try:
-                genai.configure(api_key=GEMINI_API_KEY)
-                # 가용한 모델 목록을 출력하여 로그에서 확인 가능하도록 함
-                print("--- Available Gemini Models ---")
-                available_models = []
-                for m in genai.list_models():
-                    if 'generateContent' in m.supported_generation_methods:
-                        print(f"Model: {m.name}")
-                        available_models.append(m.name)
-                
-                # 우선순위에 따른 모델 선택
-                target_models = ['models/gemini-1.5-flash', 'gemini-1.5-flash', 'models/gemini-pro']
-                selected_model = None
-                for tm in target_models:
-                    if tm in available_models or any(tm in am for am in available_models):
-                        selected_model = tm
+        if not GEMINI_API_KEY:
+            print("Error: GEMINI_API_KEY is missing.")
+            return
+
+        try:
+            genai.configure(api_key=GEMINI_API_KEY)
+            
+            # 실제 가용한 모델 목록 가져오기
+            available_models = [m.name for m in genai.list_models() 
+                               if 'generateContent' in m.supported_generation_methods]
+            
+            print(f"--- Available Models: {available_models}")
+
+            # 우선순위 후보군
+            candidates = [
+                'models/gemini-1.5-flash', 
+                'models/gemini-1.5-flash-latest',
+                'models/gemini-pro',
+                'gemini-1.5-flash',
+                'gemini-pro'
+            ]
+
+            selected = None
+            for cand in candidates:
+                # 정확히 일치하거나 포함되는 모델 찾기
+                for am in available_models:
+                    if cand == am or cand.split('/')[-1] == am.split('/')[-1]:
+                        selected = am
                         break
-                
-                if not selected_model:
-                    selected_model = 'gemini-1.5-flash' # Fallback
-                
-                print(f"Selected Model: {selected_model}")
-                self.model = genai.GenerativeModel(selected_model)
-            except Exception as e:
-                print(f"Error initializing Gemini: {e}")
-                self.model = None
+                if selected: break
+
+            if not selected and available_models:
+                selected = available_models[0] # 최후의 수단: 첫 번째 가용 모델 선택
+
+            if selected:
+                print(f"--- Successfully Selected Model: {selected}")
+                self.model = genai.GenerativeModel(selected)
+            else:
+                print("Error: No suitable Gemini models found.")
+
+        except Exception as e:
+            print(f"Error during Gemini initialization: {str(e)}")
 
     def summarize_corporate_info_stream(self, corp_name, dart_content, news_content):
         """DART와 뉴스 데이터를 바탕으로 기업 정보를 실시간으로 요약합니다."""
+        # 모델이 없으면 재시도 (환경 변수 반영 지연 등 대비)
         if not self.model:
-            yield "Gemini AI 서비스를 초기화할 수 없습니다. API 키와 모델 권한을 확인해주세요."
+            self._initialize_model()
+            
+        if not self.model:
+            yield "현재 사용 가능한 Gemini AI 모델을 찾을 수 없습니다. API 키의 권한이나 Google AI Studio 설정을 확인해주세요."
             return
 
         prompt = f"""
