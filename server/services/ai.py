@@ -25,13 +25,13 @@ class AIService:
             
             print(f"--- Available Models: {available_models}")
 
-            # 우선순위 후보군
+            # 우선순위 후보군 (로그 확인 결과 2.0/2.5 계열이 주력임)
             candidates = [
-                'models/gemini-1.5-flash', 
-                'models/gemini-1.5-flash-latest',
-                'models/gemini-pro',
-                'gemini-1.5-flash',
-                'gemini-pro'
+                'models/gemini-2.5-flash',
+                'models/gemini-2.0-flash',
+                'models/gemini-1.5-flash',
+                'gemini-2.0-flash',
+                'gemini-1.5-flash'
             ]
 
             selected = None
