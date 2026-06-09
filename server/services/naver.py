@@ -30,10 +30,9 @@ class NaverService:
         clean = re.compile('<.*?>')
         return re.sub(clean, '', text)
 
-    def search_news(self, query, display=15):
-        """네이버 뉴스 검색 결과를 가져옵니다. 정확도순(sim)으로 정렬."""
-        print(f"--- Searching Naver News for: {query}")
-        url = "https://openapi.naver.com/v1/search/news.json"
+    def _search_naver(self, query, category="news", display=10):
+        """네이버 검색 API 범용 호출 함수"""
+        url = f"https://openapi.naver.com/v1/search/{category}.json"
         headers = {
             "X-Naver-Client-Id": self.client_id,
             "X-Naver-Client-Secret": self.client_secret
@@ -41,23 +40,31 @@ class NaverService:
         params = {
             "query": query,
             "display": display,
-            "sort": "sim"  # 'date' 대신 'sim'(정확도순) 사용
+            "sort": "sim"
         }
         try:
             response = requests.get(url, headers=headers, params=params, timeout=5)
-            print(f"--- Naver API Status: {response.status_code}")
             if response.status_code == 200:
                 items = response.json().get('items', [])
-                print(f"--- Found {len(items)} news items.")
                 for item in items:
                     item['title'] = self._clean_html(item['title'])
                     item['description'] = self._clean_html(item['description'])
                 return items
-            else:
-                print(f"--- Naver API Error Response: {response.text}")
         except Exception as e:
-            print(f"Naver News API Error: {e}")
+            print(f"Naver {category} API Error: {e}")
         return []
+
+    def search_news(self, query, display=10):
+        """뉴스 검색"""
+        return self._search_naver(query, "news", display)
+
+    def search_blog(self, query, display=5):
+        """블로그 검색"""
+        return self._search_naver(query, "blog", display)
+
+    def search_cafe(self, query, display=5):
+        """카페 검색"""
+        return self._search_naver(query, "cafe", display)
 
     def search_reports(self, corp_name):
         """기업 분석 리포트 관련 뉴스 검색"""

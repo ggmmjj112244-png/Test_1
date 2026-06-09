@@ -16,6 +16,8 @@
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
         .item-card.selected { border-color: #2563eb; background-color: #eff6ff; }
+        .content-preview { transition: max-height 0.3s ease-out; overflow: hidden; max-height: 0; }
+        .content-preview.open { max-height: 500px; padding-top: 1rem; border-top: 1px dashed #e2e8f0; margin-top: 1rem; }
     </style>
 </head>
 <body class="min-h-screen">

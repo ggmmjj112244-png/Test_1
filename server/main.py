@@ -36,11 +36,18 @@ async def search_info(corp_name: str):
     # 2. DART 기업 개요
     dart_info = dart_service.get_company_overview(corp_code)
     
-    # 3. 네이버 뉴스 검색
+    # 3. 네이버 뉴스 검색 (뉴스 10개)
     news_items = naver_service.search_news(corp_name, display=10)
     
-    # 4. 리서치/전망 검색
+    # 4. 기업명 + 사업 관련 검색 (뉴스 5개 추가)
+    biz_news_items = naver_service.search_news(f"{corp_name} 사업", display=5)
+    
+    # 5. 리서치/전망 검색 (5개)
     report_items = naver_service.search_reports(corp_name)
+
+    # 6. 블로그 및 카페 검색 (각 5개)
+    blog_items = naver_service.search_blog(corp_name, display=5)
+    cafe_items = naver_service.search_cafe(corp_name, display=5)
 
     results = []
     # DART 정보 추가
@@ -52,13 +59,34 @@ async def search_info(corp_name: str):
             "content": dart_info
         })
 
-    # 뉴스 아이템 추가
-    for i, item in enumerate(news_items):
+    # 뉴스 및 사업 뉴스 추가
+    for i, item in enumerate(news_items + biz_news_items):
         results.append({
             "id": f"news_{i}",
             "type": "NEWS",
             "title": item['title'],
-            "content": item['description']
+            "content": item['description'],
+            "link": item.get('link', '#')
+        })
+
+    # 블로그 추가
+    for i, item in enumerate(blog_items):
+        results.append({
+            "id": f"blog_{i}",
+            "type": "BLOG",
+            "title": item['title'],
+            "content": item['description'],
+            "link": item.get('link', '#')
+        })
+
+    # 카페 추가
+    for i, item in enumerate(cafe_items):
+        results.append({
+            "id": f"cafe_{i}",
+            "type": "CAFE",
+            "title": item['title'],
+            "content": item['description'],
+            "link": item.get('link', '#')
         })
 
     # 리서치 아이템 추가
@@ -67,8 +95,18 @@ async def search_info(corp_name: str):
             "id": f"report_{i}",
             "type": "REPORT",
             "title": f"[리서치] {item['title']}",
-            "content": item['description']
+            "content": item['description'],
+            "link": item.get('link', '#')
         })
+
+    # 유튜브는 API 키 제한으로 링크만 추가 (검색 결과로 대체)
+    results.append({
+        "id": "youtube_0",
+        "type": "YOUTUBE",
+        "title": f"{corp_name} 관련 유튜브 검색 결과",
+        "content": "유튜브에서 최신 영상 및 분석 자료를 직접 확인해보세요.",
+        "link": f"https://www.youtube.com/results?search_query={corp_name}"
+    })
 
     return {"status": "success", "items": results}
 
