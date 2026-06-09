@@ -48,15 +48,31 @@ class DartService:
                     return item.get('rcept_no')
         return None
 
+    def get_company_info(self, corp_code):
+        """기업 개요 정보를 가져옵니다 (기업개요 API)."""
+        url = f"https://opendart.fss.or.kr/api/company.json?crtfc_key={self.api_key}&corp_code={corp_code}"
+        try:
+            response = requests.get(url).json()
+            if response.get('status') == '000':
+                return {
+                    "corp_name": response.get('corp_name'),
+                    "ceo_nm": response.get('ceo_nm'),
+                    "induty_code": response.get('induty_code'),
+                    "main_biz": response.get('main_biz'),
+                    "hm_url": response.get('hm_url'),
+                    "phn_no": response.get('phn_no')
+                }
+        except Exception as e:
+            print(f"DART Company Info API Error: {e}")
+        return None
+
     def get_company_overview(self, corp_code):
-        """회사의 개요를 가져옵니다."""
-        # 실제로는 rcept_no가 필요할 수도 있으나, 최신 보고서 기준 API 호출
-        rcept_no = self.get_latest_report(corp_code)
-        if not rcept_no: return ""
+        """회사의 상세 개요를 요약하여 반환합니다."""
+        info = self.get_company_info(corp_code)
+        if not info:
+            return "기업 개요 정보를 수집할 수 없습니다."
         
-        # OpenDART의 단일인증키 기반 상세 추출 (예시 파라미터)
-        # 실제 API 명세에 맞춰 수정 필요
-        return f"상세 데이터 수집 중 (rcept_no: {rcept_no})"
+        return f"기업명: {info['corp_name']}, 대표자: {info['ceo_nm']}, 주요사업: {info['main_biz']}, 홈페이지: {info['hm_url']}"
 
     def get_business_content(self, corp_code):
         """사업의 내용을 가져옵니다."""

@@ -30,18 +30,23 @@ async def analyze_company(corp_name: str):
             yield json.dumps({"status": "error", "message": f"'{corp_name}'에 해당하는 기업 코드를 찾을 수 없습니다."}) + "\n"
             return
 
-        # 2단계: DART 사업 내용 수집
-        yield json.dumps({"status": "progress", "message": "사업보고서 데이터를 수집하고 있습니다..."}) + "\n"
-        # 여기서는 간단히 rcept_no 정도만 가져오는 로직으로 대체 (실제 텍스트 추출은 복잡하므로)
+        # 2단계: DART 데이터 수집 (개요 정보 추가)
+        yield json.dumps({"status": "progress", "message": "DART 기업 정보를 수집하고 있습니다..."}) + "\n"
+        dart_info = dart_service.get_company_overview(corp_code)
         rcept_no = dart_service.get_latest_report(corp_code)
-        dart_summary = f"기업코드: {corp_code}, 최근 보고서 번호: {rcept_no}. (상세 내용은 API 제약으로 인해 기본 정보를 바탕으로 분석합니다.)"
-        await asyncio.sleep(1)
+        dart_summary = f"DART 기업정보: {dart_info}\n최근 보고서 번호: {rcept_no}"
+        await asyncio.sleep(0.5)
 
-        # 3단계: 네이버 뉴스 수집
-        yield json.dumps({"status": "progress", "message": "최신 뉴스 및 리포트 데이터를 수집하고 있습니다..."}) + "\n"
+        # 3단계: 네이버 뉴스 수집 (검색어 최적화 및 최신순 정렬)
+        yield json.dumps({"status": "progress", "message": "최신 뉴스 및 시장 리포트를 분석하고 있습니다..."}) + "\n"
+        # '삼성전자' 키워드로 최신 뉴스 검색
         news_items = naver_service.search_news(corp_name)
-        news_content = "\n".join([f"- {item['title']}: {item['description']}" for item in news_items])
-        await asyncio.sleep(1)
+        # '삼성전자 리포트/전망' 키워드로 추가 검색
+        report_items = naver_service.search_reports(corp_name)
+        
+        all_news = news_items + report_items
+        news_content = "\n".join([f"- {item['title']}: {item['description']}" for item in all_news])
+        await asyncio.sleep(0.5)
 
         # 4단계: Gemini AI 요약 (스트리밍 적용)
         yield json.dumps({"status": "progress", "message": "Gemini AI가 정보를 분석하여 요약하고 있습니다. 잠시만 기다려 주세요..."}) + "\n"
