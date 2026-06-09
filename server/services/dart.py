@@ -77,7 +77,7 @@ class DartService:
                 return {
                     "corp_name": response.get('corp_name'),
                     "ceo_nm": response.get('ceo_nm'),
-                    "induty_code": response.get('induty_code'),
+                    "induty_name": response.get('induty_name'), # 업종명 추가
                     "main_biz": response.get('main_biz'),
                     "hm_url": response.get('hm_url'),
                     "phn_no": response.get('phn_no')
@@ -92,13 +92,18 @@ class DartService:
         if not info:
             return "기업 정보를 수집할 수 없습니다."
         
-        # '사업의 내용' 세션을 강조하기 위해 추가 정보 구성
-        rcept_no = self.get_latest_report(corp_code)
+        # '사업의 내용' 섹션을 강조
+        main_biz = info.get('main_biz') or "정보 없음"
+        induty = info.get('induty_name') or "정보 없음"
         
-        overview = f"기업명: {info['corp_name']}, 대표자: {info['ceo_nm']}\n"
-        overview += f"주요사업(공시): {info['main_biz']}\n"
+        overview = f"--- [기업 주요 사업 정보] ---\n"
+        overview += f"1. 기업 명칭: {info['corp_name']}\n"
+        overview += f"2. 업종: {induty}\n"
+        overview += f"3. 주요 사업내용: {main_biz}\n"
+        
+        rcept_no = self.get_latest_report(corp_code)
         if rcept_no:
-            overview += f"최신 사업보고서(공유번호: {rcept_no})의 '사업의 내용' 섹션에 상세한 제품군, 매출 비중, 시장 점유율 정보가 포함되어 있습니다."
+            overview += f"\n* 본 내용은 공시된 사업보고서(번호:{rcept_no})의 '사업의 내용' 세션을 기반으로 분석하기 위한 기초 데이터입니다. 해당 보고서에는 제품별 매출, 시장 점유율, 생산 설비 현황 등이 포함되어 있습니다."
         
         return overview
 

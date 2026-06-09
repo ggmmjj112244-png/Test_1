@@ -57,21 +57,23 @@ function renderItemList(items) {
 
     items.forEach((item, index) => {
         const card = document.createElement('div');
-        card.className = 'item-card bg-white border border-slate-200 rounded-xl p-4 transition-all flex flex-col h-full';
+        card.className = 'item-card bg-slate-900 border border-slate-800 rounded-2xl p-5 transition-all flex flex-col h-full hover:border-slate-600 group';
         card.innerHTML = `
-            <div class="flex justify-between items-start mb-3">
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 uppercase">${item.type}</span>
-                <input type="checkbox" id="check_${index}" value="${index}" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+            <div class="flex justify-between items-start mb-4">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-800 text-blue-400 border border-slate-700 uppercase tracking-wider">${item.type}</span>
+                <input type="checkbox" id="check_${index}" value="${index}" class="w-5 h-5 rounded-md border-slate-700 bg-slate-950 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all">
             </div>
             <div class="flex-1">
-                <h3 class="font-bold text-sm text-slate-800 line-clamp-2 mb-2 h-10">${item.title}</h3>
-                <p class="text-xs text-slate-500 line-clamp-3 mb-3">${item.content}</p>
+                <h3 class="font-bold text-base text-slate-100 line-clamp-2 mb-3 leading-tight group-hover:text-blue-400 transition-colors">${item.title}</h3>
+                <p class="text-xs text-slate-400 line-clamp-4 leading-relaxed">${item.content}</p>
             </div>
-            <div class="mt-auto pt-3 border-t border-slate-50 flex justify-between items-center">
-                <button class="toggle-btn text-xs text-blue-600 font-medium hover:underline">상세보기</button>
-                ${item.link ? `<a href="${item.link}" target="_blank" class="text-slate-400 hover:text-blue-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>` : ''}
+            <div class="mt-6 pt-4 border-t border-slate-800/50 flex justify-between items-center">
+                <button class="toggle-btn text-xs text-slate-400 font-semibold hover:text-blue-400 transition-colors flex items-center gap-1">
+                    상세보기 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                ${item.link ? `<a href="${item.link}" target="_blank" class="text-slate-500 hover:text-blue-400 transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>` : ''}
             </div>
-            <div class="content-preview hidden mt-3 text-xs text-slate-600 bg-slate-50 p-3 rounded-lg overflow-y-auto max-h-40">
+            <div class="content-preview hidden mt-4 text-xs text-slate-300 bg-slate-950/50 p-4 rounded-xl border border-slate-800/50 overflow-y-auto max-h-48 leading-loose">
                 ${item.content}
             </div>
         `;
