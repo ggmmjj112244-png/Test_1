@@ -57,33 +57,28 @@ function renderItemList(items) {
 
     items.forEach((item, index) => {
         const card = document.createElement('div');
-        card.className = 'item-card bg-white border border-slate-200 rounded-xl p-4 transition-all';
+        card.className = 'item-card bg-white border border-slate-200 rounded-xl p-4 transition-all flex flex-col h-full';
         card.innerHTML = `
-            <div class="flex gap-4">
-                <div class="flex items-start pt-1">
-                    <input type="checkbox" id="check_${index}" value="${index}" class="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
-                </div>
-                <div class="flex-1">
-                    <div class="flex items-center justify-between mb-1">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">${item.type}</span>
-                            <h3 class="font-medium text-slate-800">${item.title}</h3>
-                        </div>
-                        <button class="toggle-btn text-slate-400 hover:text-blue-600 transition-colors">
-                            <svg class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </button>
-                    </div>
-                    <div class="content-preview text-sm text-slate-600">
-                        <p class="mb-3">${item.content}</p>
-                        ${item.link ? `<a href="${item.link}" target="_blank" class="text-blue-500 hover:underline inline-flex items-center gap-1">원문 보기 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>` : ''}
-                    </div>
-                </div>
+            <div class="flex justify-between items-start mb-3">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 uppercase">${item.type}</span>
+                <input type="checkbox" id="check_${index}" value="${index}" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+            </div>
+            <div class="flex-1">
+                <h3 class="font-bold text-sm text-slate-800 line-clamp-2 mb-2 h-10">${item.title}</h3>
+                <p class="text-xs text-slate-500 line-clamp-3 mb-3">${item.content}</p>
+            </div>
+            <div class="mt-auto pt-3 border-t border-slate-50 flex justify-between items-center">
+                <button class="toggle-btn text-xs text-blue-600 font-medium hover:underline">상세보기</button>
+                ${item.link ? `<a href="${item.link}" target="_blank" class="text-slate-400 hover:text-blue-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>` : ''}
+            </div>
+            <div class="content-preview hidden mt-3 text-xs text-slate-600 bg-slate-50 p-3 rounded-lg overflow-y-auto max-h-40">
+                ${item.content}
             </div>
         `;
         
-        // 카드 클릭 시 체크박스 토글 (버튼이나 체크박스 자체 클릭 제외)
+        // 카드 클릭 시 체크박스 토글
         card.onclick = (e) => {
-            if (e.target.closest('.toggle-btn') || e.target.tagName === 'INPUT' || e.target.tagName === 'A') return;
+            if (e.target.closest('.toggle-btn') || e.target.tagName === 'INPUT' || e.target.tagName === 'A' || e.target.closest('a')) return;
             const cb = card.querySelector('input');
             cb.checked = !cb.checked;
             updateSelectedCount();
@@ -93,12 +88,11 @@ function renderItemList(items) {
         // 토글 버튼 이벤트
         const toggleBtn = card.querySelector('.toggle-btn');
         const preview = card.querySelector('.content-preview');
-        const svg = toggleBtn.querySelector('svg');
         
         toggleBtn.onclick = (e) => {
             e.stopPropagation();
-            const isOpen = preview.classList.toggle('open');
-            svg.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+            const isHidden = preview.classList.toggle('hidden');
+            toggleBtn.innerText = isHidden ? '상세보기' : '닫기';
         };
 
         // 체크박스 변경 시 카드 스타일 업데이트

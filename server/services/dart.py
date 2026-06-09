@@ -87,12 +87,20 @@ class DartService:
         return None
 
     def get_company_overview(self, corp_code):
-        """회사의 상세 개요를 요약하여 반환합니다."""
+        """회사의 상세 개요 및 주요 사업을 요약하여 반환합니다."""
         info = self.get_company_info(corp_code)
         if not info:
-            return "기업 개요 정보를 수집할 수 없습니다."
+            return "기업 정보를 수집할 수 없습니다."
         
-        return f"기업명: {info['corp_name']}, 대표자: {info['ceo_nm']}, 주요사업: {info['main_biz']}, 홈페이지: {info['hm_url']}"
+        # '사업의 내용' 세션을 강조하기 위해 추가 정보 구성
+        rcept_no = self.get_latest_report(corp_code)
+        
+        overview = f"기업명: {info['corp_name']}, 대표자: {info['ceo_nm']}\n"
+        overview += f"주요사업(공시): {info['main_biz']}\n"
+        if rcept_no:
+            overview += f"최신 사업보고서(공유번호: {rcept_no})의 '사업의 내용' 섹션에 상세한 제품군, 매출 비중, 시장 점유율 정보가 포함되어 있습니다."
+        
+        return overview
 
     def get_business_content(self, corp_code):
         """사업의 내용을 가져옵니다."""
