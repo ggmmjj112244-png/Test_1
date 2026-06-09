@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>상장사 기업 정보 요약 서비스</title>
+    <title>상장사 기업 정보 요약 서비스 (Selective)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
@@ -14,22 +14,45 @@
         .markdown-content strong { color: #2563eb; }
         .loader { border-top-color: #3498db; animation: spinner 1.5s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .item-card.selected { border-color: #2563eb; background-color: #eff6ff; }
     </style>
 </head>
 <body class="min-h-screen">
     <div class="max-w-4xl mx-auto px-4 py-12">
         <header class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-slate-900 mb-4">국내 상장사 기업 정보 요약</h1>
-            <p class="text-slate-600 text-lg">DART 공시와 최신 뉴스를 AI가 정밀하게 분석하여 핵심만 요약해 드립니다.</p>
+            <h1 class="text-4xl font-bold text-slate-900 mb-4">기업 정보 선택 요약</h1>
+            <p class="text-slate-600 text-lg">원하는 정보를 직접 선택하여 AI 요약 보고서를 생성하세요.</p>
         </header>
 
         <!-- 검색창 -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
             <div class="flex gap-4">
-                <input type="text" id="corpName" placeholder="기업명을 입력하세요 (예: 삼성전자, 두산에너빌리티)" 
+                <input type="text" id="corpName" placeholder="기업명을 입력하세요 (예: 삼성전자)" 
                     class="flex-1 px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
                 <button id="searchBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-colors shadow-lg shadow-blue-200">
-                    분석 시작
+                    정보 검색
+                </button>
+            </div>
+        </div>
+
+        <!-- 정보 목록 영역 -->
+        <div id="listArea" class="hidden mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-slate-800">검색된 정보 목록 (<span id="itemCount">0</span>)</h2>
+                <div class="flex gap-2">
+                    <button id="selectAllBtn" class="text-sm text-blue-600 hover:underline">전체 선택</button>
+                    <button id="deselectAllBtn" class="text-sm text-slate-500 hover:underline">선택 해제</button>
+                </div>
+            </div>
+            
+            <div id="itemList" class="grid gap-3 mb-6">
+                <!-- 정보 아이템들이 여기에 렌더링됨 -->
+            </div>
+
+            <div class="sticky bottom-8 bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-xl flex justify-center">
+                <button id="summarizeBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-12 rounded-2xl transition-all transform hover:scale-105 shadow-lg shadow-green-200 flex items-center gap-2">
+                    <span id="selectedCount">0</span>개 항목 요약하기
                 </button>
             </div>
         </div>
@@ -43,23 +66,12 @@
         <!-- 결과 영역 -->
         <div id="resultArea" class="hidden">
             <div class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
-                <div class="bg-slate-900 px-8 py-4">
+                <div class="bg-slate-900 px-8 py-4 flex justify-between items-center">
                     <h2 id="resultTitle" class="text-white text-xl font-bold">분석 결과</h2>
+                    <button onclick="window.scrollTo({top:0, behavior:'smooth'})" class="text-slate-400 hover:text-white text-sm">다시 검색</button>
                 </div>
                 <div id="summaryContent" class="markdown-content p-8">
                     <!-- AI 요약 내용이 들어갈 자리 -->
-                </div>
-            </div>
-
-            <!-- 출처 영역 -->
-            <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                    <h3 class="font-bold text-slate-800 mb-2">공시 원문 (DART)</h3>
-                    <a id="dartLink" href="#" target="_blank" class="text-blue-600 hover:underline break-all text-sm">확인하기</a>
-                </div>
-                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                    <h3 class="font-bold text-slate-800 mb-2">뉴스/리포트 검색</h3>
-                    <a id="newsLink" href="#" target="_blank" class="text-blue-600 hover:underline break-all text-sm">네이버 검색 결과 보기</a>
                 </div>
             </div>
         </div>

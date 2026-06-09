@@ -22,6 +22,7 @@ class NaverService:
 
     def search_news(self, query, display=15):
         """네이버 뉴스 검색 결과를 가져옵니다. 정확도순(sim)으로 정렬."""
+        print(f"--- Searching Naver News for: {query}")
         url = "https://openapi.naver.com/v1/search/news.json"
         headers = {
             "X-Naver-Client-Id": self.client_id,
@@ -33,13 +34,17 @@ class NaverService:
             "sort": "sim"  # 'date' 대신 'sim'(정확도순) 사용
         }
         try:
-            response = requests.get(url, headers=headers, params=params)
+            response = requests.get(url, headers=headers, params=params, timeout=5)
+            print(f"--- Naver API Status: {response.status_code}")
             if response.status_code == 200:
                 items = response.json().get('items', [])
+                print(f"--- Found {len(items)} news items.")
                 for item in items:
                     item['title'] = self._clean_html(item['title'])
                     item['description'] = self._clean_html(item['description'])
                 return items
+            else:
+                print(f"--- Naver API Error Response: {response.text}")
         except Exception as e:
             print(f"Naver News API Error: {e}")
         return []

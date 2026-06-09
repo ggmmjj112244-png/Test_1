@@ -16,25 +16,45 @@ class DartService:
 
     def update_corp_codes(self):
         """DART에서 고유번호 목록을 다운로드하여 메모리에 저장합니다."""
+        print(f"--- Updating DART Corp Codes with Key: {self.api_key[:5]}***")
         url = f"https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key={self.api_key}"
-        response = requests.get(url)
-        
-        if response.status_code == 200:
-            with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-                xml_data = z.read('CORPCODE.xml')
-                tree = ET.fromstring(xml_data)
-                for corp in tree.findall('list'):
-                    name = corp.find('corp_name').text
-                    code = corp.find('corp_code').text
-                    self.corp_codes[name] = code
-            return True
+        try:
+            response = requests.get(url, timeout=10)
+            print(f"--- DART API Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+                    xml_data = z.read('CORPCODE.xml')
+                    tree = ET.fromstring(xml_data)
+                    count = 0
+                    for corp in tree.findall('list'):
+                        name = corp.find('corp_name').text
+                        code = corp.find('corp_code').text
+                        self.corp_codes[name] = code
+                        count += 1
+                    print(f"--- Successfully loaded {count} corp codes.")
+                return True
+            else:
+                print(f"--- Failed to download corp codes: {response.text}")
+        except Exception as e:
+            print(f"--- Error updating corp codes: {str(e)}")
         return False
 
     def get_corp_code(self, corp_name):
         """기업명으로 고유번호를 반환합니다."""
         if not self.corp_codes:
+            print("--- Corp codes cache is empty. Updating...")
             self.update_corp_codes()
-        return self.corp_codes.get(corp_name)
+        
+        # 정확히 일치하는 이름 찾기
+        code = self.corp_codes.get(corp_name)
+        if not code:
+            # 부분 일치 검색 시도 (예: '삼성전자'가 '삼성전자(주)'로 되어 있을 수 있음)
+            for name, c in self.corp_codes.items():
+                if corp_name in name:
+                    print(f"--- Found partial match: {name} -> {c}")
+                    return c
+        return code
 
     def get_latest_report(self, corp_code):
         """최신 사업보고서(11011)의 rcept_no를 가져옵니다."""

@@ -18,6 +18,77 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from pydantic import BaseModel
+from typing import List
+
+class SummarizeRequest(BaseModel):
+    corp_name: str
+    selected_items: List[str]
+
+@app.get("/search")
+async def search_info(corp_name: str):
+    """기업 관련 정보를 검색하여 목록을 반환합니다."""
+    # 1. DART 기업 코드 조회
+    corp_code = dart_service.get_corp_code(corp_name)
+    if not corp_code:
+        return {"status": "error", "message": f"'{corp_name}' 기업 코드를 찾을 수 없습니다."}
+
+    # 2. DART 기업 개요
+    dart_info = dart_service.get_company_overview(corp_code)
+    
+    # 3. 네이버 뉴스 검색
+    news_items = naver_service.search_news(corp_name, display=10)
+    
+    # 4. 리서치/전망 검색
+    report_items = naver_service.search_reports(corp_name)
+
+    results = []
+    # DART 정보 추가
+    if dart_info and "수집할 수 없습니다" not in dart_info:
+        results.append({
+            "id": "dart_0",
+            "type": "DART",
+            "title": "[공시] 기업 개요 및 주요 사업",
+            "content": dart_info
+        })
+
+    # 뉴스 아이템 추가
+    for i, item in enumerate(news_items):
+        results.append({
+            "id": f"news_{i}",
+            "type": "NEWS",
+            "title": item['title'],
+            "content": item['description']
+        })
+
+    # 리서치 아이템 추가
+    for i, item in enumerate(report_items):
+        results.append({
+            "id": f"report_{i}",
+            "type": "REPORT",
+            "title": f"[리서치] {item['title']}",
+            "content": item['description']
+        })
+
+    return {"status": "success", "items": results}
+
+@app.post("/summarize")
+async def summarize_selected(request: SummarizeRequest):
+    """선택된 정보를 바탕으로 요약을 수행합니다."""
+    async def event_generator():
+        yield json.dumps({"status": "progress", "message": "선택된 정보를 분석하여 요약을 생성 중입니다..."}) + "\n"
+        
+        full_content = "\n\n".join(request.selected_items)
+        
+        full_summary = ""
+        for chunk in ai_service.summarize_corporate_info_stream(request.corp_name, "선택된 요약 정보 세트", full_content):
+            full_summary += chunk
+            yield json.dumps({"status": "partial", "data": {"summary": full_summary}}) + "\n"
+        
+        yield json.dumps({"status": "complete", "data": {"summary": full_summary}}) + "\n"
+
+    return StreamingResponse(event_generator(), media_type="application/x-ndjson")
+
 @app.get("/analyze")
 async def analyze_company(corp_name: str):
     async def event_generator():
