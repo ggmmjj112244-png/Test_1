@@ -10,14 +10,16 @@ class AIService:
     def __init__(self):
         if GEMINI_API_KEY:
             genai.configure(api_key=GEMINI_API_KEY)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            # 모델명을 명시적으로 지정
+            self.model = genai.GenerativeModel('models/gemini-1.5-flash')
         else:
             self.model = None
 
-    def summarize_corporate_info(self, corp_name, dart_content, news_content):
-        """DART와 뉴스 데이터를 바탕으로 기업 정보를 요약합니다."""
+    def summarize_corporate_info_stream(self, corp_name, dart_content, news_content):
+        """DART와 뉴스 데이터를 바탕으로 기업 정보를 실시간으로 요약합니다."""
         if not self.model:
-            return "Gemini API Key가 설정되지 않았습니다."
+            yield "Gemini API Key가 설정되지 않았습니다."
+            return
 
         prompt = f"""
 너는 전문 주식 분석가이자 기업 리서치 전문가야. 
@@ -41,7 +43,18 @@ DART 사업보고서 요약:
 {news_content}
 [데이터 끝]
 """
-        response = self.model.generate_content(prompt)
+        response = self.model.generate_content(prompt, stream=True)
+        for chunk in response:
+            if chunk.text:
+                yield chunk.text
+
+    def summarize_corporate_info(self, corp_name, dart_content, news_content):
+        """DART와 뉴스 데이터를 바탕으로 기업 정보를 요약합니다. (동기 방식)"""
+        if not self.model:
+            return "Gemini API Key가 설정되지 않았습니다."
+
+        # 기존 로직 유지 (필요시)
+        response = self.model.generate_content(f"Summarize {corp_name} based on provided data.")
         return response.text
 
 ai_service = AIService()

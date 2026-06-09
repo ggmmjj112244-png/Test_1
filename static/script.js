@@ -38,6 +38,12 @@ document.getElementById('searchBtn').addEventListener('click', async () => {
                     
                     if (data.status === 'progress') {
                         statusMessage.innerText = data.message;
+                    } else if (data.status === 'partial') {
+                        // 실시간 요약 내용 표시
+                        statusArea.classList.add('hidden');
+                        resultArea.classList.remove('hidden');
+                        document.getElementById('resultTitle').innerText = `${corpName} 분석 중...`;
+                        summaryContent.innerHTML = marked.parse(data.data.summary);
                     } else if (data.status === 'complete') {
                         // 결과 표시
                         statusArea.classList.add('hidden');

@@ -43,15 +43,20 @@ async def analyze_company(corp_name: str):
         news_content = "\n".join([f"- {item['title']}: {item['description']}" for item in news_items])
         await asyncio.sleep(1)
 
-        # 4단계: Gemini AI 요약
+        # 4단계: Gemini AI 요약 (스트리밍 적용)
         yield json.dumps({"status": "progress", "message": "Gemini AI가 정보를 분석하여 요약하고 있습니다. 잠시만 기다려 주세요..."}) + "\n"
-        summary = ai_service.summarize_corporate_info(corp_name, dart_summary, news_content)
         
-        # 5단계: 결과 전송
+        full_summary = ""
+        # AI 요약 내용을 실시간으로 전달하기 위한 status: partial 추가
+        for chunk in ai_service.summarize_corporate_info_stream(corp_name, dart_summary, news_content):
+            full_summary += chunk
+            yield json.dumps({"status": "partial", "data": {"summary": full_summary}}) + "\n"
+        
+        # 5단계: 최종 완료 결과 전송
         yield json.dumps({
             "status": "complete", 
             "data": {
-                "summary": summary,
+                "summary": full_summary,
                 "sources": {
                     "dart": f"https://opendart.fss.or.kr/reporting/viewer.do?rcpNo={rcept_no}" if rcept_no else "정보 없음",
                     "news": f"https://search.naver.com/search.naver?query={corp_name}+뉴스"
