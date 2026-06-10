@@ -27,10 +27,15 @@ class SummarizeRequest(BaseModel):
 
 @app.get("/fetch_full_content")
 async def fetch_full_content(url: str):
-    """URL의 본문 내용을 추출하여 반환합니다."""
+    """URL의 본문 내용을 최대한 전문으로 추출하여 반환합니다."""
     if not url or url == "#" or "youtube.com" in url:
         return {"status": "error", "message": "본문을 추출할 수 없는 링크입니다."}
     
+    # 네이버 뉴스 단축 URL 처리 등
+    if "n.news.naver.com" in url or "news.naver.com" in url:
+        # 네이버 뉴스는 특별 처리
+        pass
+
     try:
         import requests
         from bs4 import BeautifulSoup
@@ -51,43 +56,63 @@ async def fetch_full_content(url: str):
         
         soup = BeautifulSoup(response.text, 'lxml')
         
-        # 불필요한 태그 제거
-        for s in soup(['script', 'style', 'header', 'footer', 'nav', 'aside', 'iframe', 'button']):
+        # 불필요한 태그 제거 (더 공격적으로)
+        for s in soup(['script', 'style', 'header', 'footer', 'nav', 'aside', 'iframe', 'button', 'input', 'form', 'meta']):
             s.decompose()
             
-        # 네이버 뉴스 등 주요 뉴스/블로그 영역 탐색
+        # 네이버 뉴스 등 주요 뉴스/블로그 영역 정밀 탐색
         content_selectors = [
             '#dic_area', '#articleBodyContents', '#newsct_article', '.newsct_article',
-            '#content', '.article_view', '.post-content', '.post_content', '.article_body',
-            'article', 'main'
+            '#articeBody', '#articleBody', '.article_body', '.article-body',
+            '#content', '.post-content', '.post_content', '.entry-content',
+            '.viewer_content', '.se-main-container', '.post_article',
+            'article', 'main', '#main-content', '.main-content'
         ]
         
         content_text = ""
         for selector in content_selectors:
             found = soup.select_one(selector)
             if found:
+                # 불필요한 공지, 버튼 등 추가 제거
+                for extra in found.select('.comment, .reply, .ad, .social, .tag, .share'):
+                    extra.decompose()
+                
                 content_text = found.get_text(separator='\n', strip=True)
-                if len(content_text) > 200: break # 충분한 내용이면 중단
+                if len(content_text) > 300: break # 충분한 분량이면 성공
         
-        if not content_text:
-            # 대체 수단: p 태그들 모으기
-            p_tags = soup.find_all('p')
-            if len(p_tags) > 3:
-                content_text = "\n".join([p.get_text(strip=True) for p in p_tags if len(p.get_text(strip=True)) > 20])
-            else:
-                # 최후의 수단: body 전체
-                content_text = soup.body.get_text(separator='\n', strip=True) if soup.body else ""
+        if not content_text or len(content_text) < 200:
+            # 대체 수단: 가장 긴 텍스트를 가진 div 찾기 (본문일 가능성 높음)
+            all_divs = soup.find_all(['div', 'section'])
+            if all_divs:
+                best_div = max(all_divs, key=lambda x: len(x.get_text(strip=True)))
+                if len(best_div.get_text(strip=True)) > 200:
+                    content_text = best_div.get_text(separator='\n', strip=True)
 
-        # 정규표현식으로 불필요한 공백/줄바꿈 정리
+        if not content_text:
+            # 최후의 수단: p 태그들 모으기
+            p_tags = soup.find_all('p')
+            content_text = "\n".join([p.get_text(strip=True) for p in p_tags if len(p.get_text(strip=True)) > 30])
+
+        # 정규표현식으로 불필요한 공백/줄바꿈 및 '...' 등 제거 시도
         content_text = re.sub(r'\n\s*\n+', '\n\n', content_text)
         content_text = content_text.strip()
         
-        # 너무 길면 자르기 (Gemini 토큰 제한 고려)
-        if len(content_text) > 8000:
-            content_text = content_text[:8000] + "\n... (이하 생략)"
-            
-        if not content_text or len(content_text) < 50:
-            return {"status": "error", "message": "본문 내용을 충분히 추출하지 못했습니다. 원문 링크를 확인해 주세요."}
+        # 추출된 내용이 너무 짧거나 여전히 "..."이 많다면 실패로 간주
+        if not content_text or len(content_text) < 100 or content_text.count('...') > 10:
+             # 만약 본문 추출에 실패했는데 body는 있다면 body라도...
+             if not content_text:
+                 content_text = soup.body.get_text(separator='\n', strip=True) if soup.body else ""
+
+        # 최종 가공: 불필요한 문구(무단전재 등) 제거
+        cleanup_patterns = [
+            r'무단 전재 및 재배포 금지', r'저작권자.*ⓒ', r'기자 =', r'Copyrights.*All rights reserved',
+            r'\[.*뉴스\]', r'▲', r'▼'
+        ]
+        for pattern in cleanup_patterns:
+            content_text = re.sub(pattern, '', content_text)
+
+        if not content_text or len(content_text) < 100:
+            return {"status": "error", "message": "본문 전문을 자동으로 추출하지 못했습니다. 원문 링크를 통해 확인해 주세요."}
             
         return {"status": "success", "content": content_text}
         
