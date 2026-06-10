@@ -16,7 +16,8 @@ class DartService:
 
     def update_corp_codes(self):
         """DART에서 고유번호 목록을 다운로드하여 메모리에 저장합니다."""
-        print(f"--- Updating DART Corp Codes with Key: {self.api_key[:5]}***")
+        key_preview = f"{self.api_key[:5]}***" if self.api_key else "None"
+        print(f"--- Updating DART Corp Codes with Key: {key_preview}")
         url = f"https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key={self.api_key}"
         try:
             response = requests.get(url, timeout=10)
