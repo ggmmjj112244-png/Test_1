@@ -1,7 +1,7 @@
 import json
 import asyncio
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from .services.dart import dart_service
@@ -9,6 +9,13 @@ from .services.naver import naver_service
 from .services.ai import ai_service
 
 app = FastAPI()
+
+@app.exception_handler(Exception)
+async def universal_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": f"서버 내부 오류: {str(exc)}"}
+    )
 
 # CORS 설정
 app.add_middleware(
@@ -31,11 +38,6 @@ async def fetch_full_content(url: str):
     if not url or url == "#" or "youtube.com" in url:
         return {"status": "error", "message": "본문을 추출할 수 없는 링크입니다."}
     
-    # 네이버 뉴스 단축 URL 처리 등
-    if "n.news.naver.com" in url or "news.naver.com" in url:
-        # 네이버 뉴스는 특별 처리
-        pass
-
     try:
         import requests
         from bs4 import BeautifulSoup
@@ -43,7 +45,6 @@ async def fetch_full_content(url: str):
 
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         }
         
         response = requests.get(url, headers=headers, timeout=10)
@@ -54,13 +55,13 @@ async def fetch_full_content(url: str):
         if 'charset' not in content_type:
             response.encoding = response.apparent_encoding
         
-        soup = BeautifulSoup(response.text, 'lxml')
+        # lxml 대신 html.parser 사용 (호환성)
+        soup = BeautifulSoup(response.text, 'html.parser')
         
-        # 불필요한 태그 제거 (더 공격적으로)
+        # 불필요한 태그 제거
         for s in soup(['script', 'style', 'header', 'footer', 'nav', 'aside', 'iframe', 'button', 'input', 'form', 'meta']):
             s.decompose()
             
-        # 네이버 뉴스 등 주요 뉴스/블로그 영역 정밀 탐색
         content_selectors = [
             '#dic_area', '#articleBodyContents', '#newsct_article', '.newsct_article',
             '#articeBody', '#articleBody', '.article_body', '.article-body',
@@ -73,136 +74,67 @@ async def fetch_full_content(url: str):
         for selector in content_selectors:
             found = soup.select_one(selector)
             if found:
-                # 불필요한 공지, 버튼 등 추가 제거
                 for extra in found.select('.comment, .reply, .ad, .social, .tag, .share'):
                     extra.decompose()
-                
                 content_text = found.get_text(separator='\n', strip=True)
-                if len(content_text) > 300: break # 충분한 분량이면 성공
+                if len(content_text) > 300: break
         
-        if not content_text or len(content_text) < 200:
-            # 대체 수단: 가장 긴 텍스트를 가진 div 찾기 (본문일 가능성 높음)
-            all_divs = soup.find_all(['div', 'section'])
-            if all_divs:
-                best_div = max(all_divs, key=lambda x: len(x.get_text(strip=True)))
-                if len(best_div.get_text(strip=True)) > 200:
-                    content_text = best_div.get_text(separator='\n', strip=True)
-
         if not content_text:
-            # 최후의 수단: p 태그들 모으기
             p_tags = soup.find_all('p')
             content_text = "\n".join([p.get_text(strip=True) for p in p_tags if len(p.get_text(strip=True)) > 30])
 
-        # 정규표현식으로 불필요한 공백/줄바꿈 및 '...' 등 제거 시도
-        content_text = re.sub(r'\n\s*\n+', '\n\n', content_text)
-        content_text = content_text.strip()
-        
-        # 추출된 내용이 너무 짧거나 여전히 "..."이 많다면 실패로 간주
-        if not content_text or len(content_text) < 100 or content_text.count('...') > 10:
-             # 만약 본문 추출에 실패했는데 body는 있다면 body라도...
-             if not content_text:
-                 content_text = soup.body.get_text(separator='\n', strip=True) if soup.body else ""
-
-        # 최종 가공: 불필요한 문구(무단전재 등) 제거
-        cleanup_patterns = [
-            r'무단 전재 및 재배포 금지', r'저작권자.*ⓒ', r'기자 =', r'Copyrights.*All rights reserved',
-            r'\[.*뉴스\]', r'▲', r'▼'
-        ]
-        for pattern in cleanup_patterns:
-            content_text = re.sub(pattern, '', content_text)
+        content_text = re.sub(r'\n\s*\n+', '\n\n', content_text).strip()
 
         if not content_text or len(content_text) < 100:
-            return {"status": "error", "message": "본문 전문을 자동으로 추출하지 못했습니다. 원문 링크를 통해 확인해 주세요."}
+            return {"status": "error", "message": "본문 내용을 충분히 추출하지 못했습니다."}
             
         return {"status": "success", "content": content_text}
         
     except Exception as e:
-        return {"status": "error", "message": f"본문 추출 중 오류 발생: {str(e)}"}
+        print(f"Error in fetch_full_content: {e}")
+        return {"status": "error", "message": f"본문 추출 중 오류: {str(e)}"}
 
 @app.get("/search")
 async def search_info(corp_name: str):
     """기업 관련 정보를 검색하여 목록을 반환합니다."""
-    # 1. DART 기업 코드 조회
-    corp_code = dart_service.get_corp_code(corp_name)
-    if not corp_code:
-        return {"status": "error", "message": f"'{corp_name}' 기업 코드를 찾을 수 없습니다."}
+    try:
+        # 1. DART 기업 코드 조회
+        corp_code = dart_service.get_corp_code(corp_name)
+        if not corp_code:
+            return {"status": "error", "message": f"'{corp_name}' 기업 코드를 찾을 수 없습니다. (DART API 키 확인 필요)"}
 
-    # 2. DART 기업 개요
-    dart_info = dart_service.get_company_overview(corp_code)
-    
-    # 3. 네이버 뉴스 검색 (뉴스 10개)
-    news_items = naver_service.search_news(corp_name, display=10)
-    
-    # 4. 기업명 + 사업 관련 검색 (뉴스 5개 추가)
-    biz_news_items = naver_service.search_news(f"{corp_name} 사업", display=5)
-    
-    # 5. 리서치/전망 검색 (5개)
-    report_items = naver_service.search_reports(corp_name)
+        # 2. DART 기업 개요
+        dart_info = dart_service.get_company_overview(corp_code)
+        
+        # 3. 네이버 뉴스 검색
+        news_items = naver_service.search_news(corp_name, display=10)
+        biz_news_items = naver_service.search_news(f"{corp_name} 사업", display=5)
+        report_items = naver_service.search_reports(corp_name)
+        blog_items = naver_service.search_blog(corp_name, display=5)
+        cafe_items = naver_service.search_cafe(corp_name, display=5)
 
-    # 6. 블로그 및 카페 검색 (각 5개)
-    blog_items = naver_service.search_blog(corp_name, display=5)
-    cafe_items = naver_service.search_cafe(corp_name, display=5)
+        results = []
+        if dart_info and "수집할 수 없습니다" not in dart_info:
+            results.append({"id": "dart_0", "type": "DART", "title": "[공시] 기업 개요 및 주요 사업", "content": dart_info})
 
-    results = []
-    # DART 정보 추가
-    if dart_info and "수집할 수 없습니다" not in dart_info:
-        results.append({
-            "id": "dart_0",
-            "type": "DART",
-            "title": "[공시] 기업 개요 및 주요 사업",
-            "content": dart_info
-        })
+        for i, item in enumerate(news_items + biz_news_items):
+            results.append({"id": f"news_{i}", "type": "NEWS", "title": item['title'], "content": item['description'], "link": item.get('link', '#')})
 
-    # 뉴스 및 사업 뉴스 추가
-    for i, item in enumerate(news_items + biz_news_items):
-        results.append({
-            "id": f"news_{i}",
-            "type": "NEWS",
-            "title": item['title'],
-            "content": item['description'],
-            "link": item.get('link', '#')
-        })
+        for i, item in enumerate(blog_items):
+            results.append({"id": f"blog_{i}", "type": "BLOG", "title": item['title'], "content": item['description'], "link": item.get('link', '#')})
 
-    # 블로그 추가
-    for i, item in enumerate(blog_items):
-        results.append({
-            "id": f"blog_{i}",
-            "type": "BLOG",
-            "title": item['title'],
-            "content": item['description'],
-            "link": item.get('link', '#')
-        })
+        for i, item in enumerate(cafe_items):
+            results.append({"id": f"cafe_{i}", "type": "CAFE", "title": item['title'], "content": item['description'], "link": item.get('link', '#')})
 
-    # 카페 추가
-    for i, item in enumerate(cafe_items):
-        results.append({
-            "id": f"cafe_{i}",
-            "type": "CAFE",
-            "title": item['title'],
-            "content": item['description'],
-            "link": item.get('link', '#')
-        })
+        for i, item in enumerate(report_items):
+            results.append({"id": f"report_{i}", "type": "REPORT", "title": f"[리서치] {item['title']}", "content": item['description'], "link": item.get('link', '#')})
 
-    # 리서치 아이템 추가
-    for i, item in enumerate(report_items):
-        results.append({
-            "id": f"report_{i}",
-            "type": "REPORT",
-            "title": f"[리서치] {item['title']}",
-            "content": item['description'],
-            "link": item.get('link', '#')
-        })
+        results.append({"id": "youtube_0", "type": "YOUTUBE", "title": f"{corp_name} 관련 유튜브 검색 결과", "content": "유튜브에서 최신 영상 및 분석 자료를 직접 확인해보세요.", "link": f"https://www.youtube.com/results?search_query={corp_name}"})
 
-    # 유튜브는 API 키 제한으로 링크만 추가 (검색 결과로 대체)
-    results.append({
-        "id": "youtube_0",
-        "type": "YOUTUBE",
-        "title": f"{corp_name} 관련 유튜브 검색 결과",
-        "content": "유튜브에서 최신 영상 및 분석 자료를 직접 확인해보세요.",
-        "link": f"https://www.youtube.com/results?search_query={corp_name}"
-    })
-
-    return {"status": "success", "items": results}
+        return {"status": "success", "items": results}
+    except Exception as e:
+        print(f"Error in /search: {e}")
+        return {"status": "error", "message": f"검색 중 서버 오류 발생: {str(e)}"}
 
 @app.post("/summarize")
 async def summarize_selected(request: SummarizeRequest):
