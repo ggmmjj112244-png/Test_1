@@ -16,7 +16,12 @@
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
         .item-card.selected { border-color: #3b82f6; background-color: #0f172a; box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
-        .content-preview { transition: max-height 0.3s ease-out; overflow: hidden; }
+        
+        /* 스크롤바 커스텀 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -78,6 +83,32 @@
                 <div id="summaryContent" class="markdown-content p-10 bg-slate-900/30">
                     <!-- AI 요약 내용이 들어갈 자리 -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 상세 내용 모달 -->
+    <div id="contentModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-3xl max-h-[85vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl shadow-blue-500/10">
+            <div class="px-8 py-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+                <div class="flex items-center gap-4">
+                    <span id="modalType" class="text-[10px] font-bold px-2 py-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase tracking-widest">TYPE</span>
+                    <h3 id="modalTitle" class="text-xl font-bold text-white line-clamp-1">상세 내용</h3>
+                </div>
+                <button id="closeModal" class="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-700 rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-8 overflow-y-auto flex-1">
+                <div id="modalContent" class="text-slate-300 leading-loose whitespace-pre-wrap text-lg">
+                    <!-- 상세 내용이 여기에 들어감 -->
+                </div>
+            </div>
+            <div class="px-8 py-6 border-t border-slate-800 bg-slate-950/30 flex justify-end">
+                <a id="modalLink" href="#" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2">
+                    원문 링크 보기
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                </a>
             </div>
         </div>
     </div>

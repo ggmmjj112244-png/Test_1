@@ -57,7 +57,7 @@ function renderItemList(items) {
 
     items.forEach((item, index) => {
         const card = document.createElement('div');
-        card.className = 'item-card bg-slate-900 border border-slate-800 rounded-2xl p-5 transition-all flex flex-col h-full hover:border-slate-600 group';
+        card.className = 'item-card bg-slate-900 border border-slate-800 rounded-2xl p-5 transition-all flex flex-col h-full hover:border-slate-600 group cursor-pointer';
         card.innerHTML = `
             <div class="flex justify-between items-start mb-4">
                 <span class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-800 text-blue-400 border border-slate-700 uppercase tracking-wider">${item.type}</span>
@@ -68,45 +68,80 @@ function renderItemList(items) {
                 <p class="text-xs text-slate-400 line-clamp-4 leading-relaxed">${item.content}</p>
             </div>
             <div class="mt-6 pt-4 border-t border-slate-800/50 flex justify-between items-center">
-                <button class="toggle-btn text-xs text-slate-400 font-semibold hover:text-blue-400 transition-colors flex items-center gap-1">
-                    상세보기 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                <button type="button" class="detail-btn text-xs text-slate-400 font-semibold hover:text-blue-400 transition-colors flex items-center gap-1">
+                    상세보기 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                 </button>
                 ${item.link ? `<a href="${item.link}" target="_blank" class="text-slate-500 hover:text-blue-400 transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>` : ''}
-            </div>
-            <div class="content-preview hidden mt-4 text-xs text-slate-300 bg-slate-950/50 p-4 rounded-xl border border-slate-800/50 overflow-y-auto max-h-48 leading-loose">
-                ${item.content}
             </div>
         `;
         
         // 카드 클릭 시 체크박스 토글
-        card.onclick = (e) => {
-            if (e.target.closest('.toggle-btn') || e.target.tagName === 'INPUT' || e.target.tagName === 'A' || e.target.closest('a')) return;
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('.detail-btn') || e.target.tagName === 'INPUT' || e.target.tagName === 'A' || e.target.closest('a')) return;
             const cb = card.querySelector('input');
             cb.checked = !cb.checked;
             updateSelectedCount();
             card.classList.toggle('selected', cb.checked);
-        };
+        });
 
-        // 토글 버튼 이벤트
-        const toggleBtn = card.querySelector('.toggle-btn');
-        const preview = card.querySelector('.content-preview');
-        
-        toggleBtn.onclick = (e) => {
+        // 상세보기 버튼 이벤트 (모달 오픈)
+        const detailBtn = card.querySelector('.detail-btn');
+        detailBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isHidden = preview.classList.toggle('hidden');
-            toggleBtn.innerText = isHidden ? '상세보기' : '닫기';
-        };
+            openModal(item.type, item.title, item.content, item.link);
+        });
 
         // 체크박스 변경 시 카드 스타일 업데이트
-        card.querySelector('input').onchange = (e) => {
+        card.querySelector('input').addEventListener('change', (e) => {
             card.classList.toggle('selected', e.target.checked);
             updateSelectedCount();
-        };
+        });
 
         itemList.appendChild(card);
     });
     updateSelectedCount();
 }
+
+// 모달 관련 로직
+const modal = document.getElementById('contentModal');
+const modalType = document.getElementById('modalType');
+const modalTitle = document.getElementById('modalTitle');
+const modalContent = document.getElementById('modalContent');
+const modalLink = document.getElementById('modalLink');
+const closeModal = document.getElementById('closeModal');
+
+function openModal(type, title, content, link) {
+    modalType.innerText = type;
+    modalTitle.innerText = title;
+    modalContent.innerHTML = content; // HTML 태그(<b> 등) 반영
+    
+    if (link && link !== '#') {
+        modalLink.href = link;
+        modalLink.classList.remove('hidden');
+    } else {
+        modalLink.classList.add('hidden');
+    }
+    
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // 스크롤 방지
+}
+
+function hideModal() {
+    modal.classList.add('hidden');
+    document.body.style.overflow = ''; // 스크롤 복원
+}
+
+closeModal.addEventListener('click', hideModal);
+modal.addEventListener('click', (e) => {
+    if (e.target === modal) hideModal();
+});
+
+// 키보드 ESC로 모달 닫기
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+        hideModal();
+    }
+});
 
 // 선택된 항목 개수 업데이트
 function updateSelectedCount() {
@@ -116,11 +151,17 @@ function updateSelectedCount() {
 
 // 전체 선택/해제
 document.getElementById('selectAllBtn').onclick = () => {
-    document.querySelectorAll('#itemList input').forEach(cb => cb.checked = true);
+    document.querySelectorAll('#itemList input').forEach(cb => {
+        cb.checked = true;
+        cb.closest('.item-card').classList.add('selected');
+    });
     updateSelectedCount();
 };
 document.getElementById('deselectAllBtn').onclick = () => {
-    document.querySelectorAll('#itemList input').forEach(cb => cb.checked = false);
+    document.querySelectorAll('#itemList input').forEach(cb => {
+        cb.checked = false;
+        cb.closest('.item-card').classList.remove('selected');
+    });
     updateSelectedCount();
 };
 
