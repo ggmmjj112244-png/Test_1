@@ -84,7 +84,7 @@ function renderItemList(items) {
             card.classList.toggle('selected', cb.checked);
         });
 
-        // 상세보기 버튼 이벤트 (모달 오픈)
+        // 상세보기 버튼 이벤트 (모달 오픈 및 본문 추출)
         const detailBtn = card.querySelector('.detail-btn');
         detailBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -110,14 +110,39 @@ const modalContent = document.getElementById('modalContent');
 const modalLink = document.getElementById('modalLink');
 const closeModal = document.getElementById('closeModal');
 
-function openModal(type, title, content, link) {
+async function openModal(type, title, snippet, link) {
     modalType.innerText = type;
     modalTitle.innerText = title;
-    modalContent.innerHTML = content; // HTML 태그(<b> 등) 반영
+    
+    // 초기에는 스니펫(요약) 표시
+    modalContent.innerHTML = snippet;
     
     if (link && link !== '#') {
         modalLink.href = link;
         modalLink.classList.remove('hidden');
+        
+        // 뉴스나 블로그인 경우 본문 추출 시도
+        if (type === 'NEWS' || type === 'BLOG' || type === 'CAFE' || type === 'REPORT') {
+            modalContent.innerHTML = snippet + '\n\n<div class="mt-4 p-4 bg-slate-800 rounded-xl border border-slate-700 animate-pulse text-blue-400 text-sm">본문을 추출하고 있습니다...</div>';
+            
+            try {
+                const response = await fetch(`/fetch_full_content?url=${encodeURIComponent(link)}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    modalContent.innerHTML = data.content;
+                    // 추출된 본문을 fetchedItems에도 업데이트 (요약 시 반영되도록)
+                    const itemIndex = fetchedItems.findIndex(i => i.title === title);
+                    if (itemIndex > -1) {
+                        fetchedItems[itemIndex].content = data.content;
+                    }
+                } else {
+                    modalContent.innerHTML = snippet + `\n\n<div class="mt-4 p-4 bg-red-900/20 text-red-400 rounded-xl border border-red-900/30 text-xs">${data.message}</div>`;
+                }
+            } catch (error) {
+                console.error('Content fetch error:', error);
+            }
+        }
     } else {
         modalLink.classList.add('hidden');
     }

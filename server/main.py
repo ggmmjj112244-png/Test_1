@@ -25,6 +25,75 @@ class SummarizeRequest(BaseModel):
     corp_name: str
     selected_items: List[str]
 
+@app.get("/fetch_full_content")
+async def fetch_full_content(url: str):
+    """URL의 본문 내용을 추출하여 반환합니다."""
+    if not url or url == "#" or "youtube.com" in url:
+        return {"status": "error", "message": "본문을 추출할 수 없는 링크입니다."}
+    
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+        import re
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        # 인코딩 처리
+        content_type = response.headers.get('content-type', '').lower()
+        if 'charset' not in content_type:
+            response.encoding = response.apparent_encoding
+        
+        soup = BeautifulSoup(response.text, 'lxml')
+        
+        # 불필요한 태그 제거
+        for s in soup(['script', 'style', 'header', 'footer', 'nav', 'aside', 'iframe', 'button']):
+            s.decompose()
+            
+        # 네이버 뉴스 등 주요 뉴스/블로그 영역 탐색
+        content_selectors = [
+            '#dic_area', '#articleBodyContents', '#newsct_article', '.newsct_article',
+            '#content', '.article_view', '.post-content', '.post_content', '.article_body',
+            'article', 'main'
+        ]
+        
+        content_text = ""
+        for selector in content_selectors:
+            found = soup.select_one(selector)
+            if found:
+                content_text = found.get_text(separator='\n', strip=True)
+                if len(content_text) > 200: break # 충분한 내용이면 중단
+        
+        if not content_text:
+            # 대체 수단: p 태그들 모으기
+            p_tags = soup.find_all('p')
+            if len(p_tags) > 3:
+                content_text = "\n".join([p.get_text(strip=True) for p in p_tags if len(p.get_text(strip=True)) > 20])
+            else:
+                # 최후의 수단: body 전체
+                content_text = soup.body.get_text(separator='\n', strip=True) if soup.body else ""
+
+        # 정규표현식으로 불필요한 공백/줄바꿈 정리
+        content_text = re.sub(r'\n\s*\n+', '\n\n', content_text)
+        content_text = content_text.strip()
+        
+        # 너무 길면 자르기 (Gemini 토큰 제한 고려)
+        if len(content_text) > 8000:
+            content_text = content_text[:8000] + "\n... (이하 생략)"
+            
+        if not content_text or len(content_text) < 50:
+            return {"status": "error", "message": "본문 내용을 충분히 추출하지 못했습니다. 원문 링크를 확인해 주세요."}
+            
+        return {"status": "success", "content": content_text}
+        
+    except Exception as e:
+        return {"status": "error", "message": f"본문 추출 중 오류 발생: {str(e)}"}
+
 @app.get("/search")
 async def search_info(corp_name: str):
     """기업 관련 정보를 검색하여 목록을 반환합니다."""
