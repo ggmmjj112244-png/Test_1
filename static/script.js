@@ -84,7 +84,7 @@ function renderItemList(items) {
             card.classList.toggle('selected', cb.checked);
         });
 
-        // 상세보기 버튼 이벤트 (모달 오픈 및 본문 추출)
+        // 상세보기 버튼 이벤트 (모달 즉시 오픈)
         const detailBtn = card.querySelector('.detail-btn');
         detailBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -106,49 +106,59 @@ function renderItemList(items) {
 const modal = document.getElementById('contentModal');
 const modalType = document.getElementById('modalType');
 const modalTitle = document.getElementById('modalTitle');
+const modalContentArea = document.querySelector('#contentModal .overflow-y-auto'); // 스크롤되는 영역
 const modalContent = document.getElementById('modalContent');
 const modalLink = document.getElementById('modalLink');
 const closeModal = document.getElementById('closeModal');
 
 async function openModal(type, title, snippet, link) {
+    // 1. 모달 즉시 표시 및 스크롤 초기화
     modalType.innerText = type;
     modalTitle.innerText = title;
-    
-    // 초기에는 스니펫(요약) 표시
-    modalContent.innerHTML = snippet;
+    modalContent.innerHTML = snippet; // 우선 스니펫 표시
+    modalContentArea.scrollTop = 0; // 스크롤을 최상단으로 리셋
     
     if (link && link !== '#') {
         modalLink.href = link;
         modalLink.classList.remove('hidden');
-        
-        // 뉴스나 블로그인 경우 본문 추출 시도
-        if (type === 'NEWS' || type === 'BLOG' || type === 'CAFE' || type === 'REPORT') {
-            modalContent.innerHTML = snippet + '\n\n<div class="mt-4 p-4 bg-slate-800 rounded-xl border border-slate-700 animate-pulse text-blue-400 text-sm">본문을 추출하고 있습니다...</div>';
-            
-            try {
-                const response = await fetch(`/fetch_full_content?url=${encodeURIComponent(link)}`);
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    modalContent.innerHTML = data.content;
-                    // 추출된 본문을 fetchedItems에도 업데이트 (요약 시 반영되도록)
-                    const itemIndex = fetchedItems.findIndex(i => i.title === title);
-                    if (itemIndex > -1) {
-                        fetchedItems[itemIndex].content = data.content;
-                    }
-                } else {
-                    modalContent.innerHTML = snippet + `\n\n<div class="mt-4 p-4 bg-red-900/20 text-red-400 rounded-xl border border-red-900/30 text-xs">${data.message}</div>`;
-                }
-            } catch (error) {
-                console.error('Content fetch error:', error);
-            }
-        }
     } else {
         modalLink.classList.add('hidden');
     }
     
     modal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden'; // 스크롤 방지
+    document.body.style.overflow = 'hidden'; // 배경 스크롤 방지
+
+    // 2. 본문 전문 추출 로직 진행
+    if (link && link !== '#' && (type === 'NEWS' || type === 'BLOG' || type === 'CAFE' || type === 'REPORT')) {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'mt-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-2xl flex items-center gap-3 text-blue-400 text-sm animate-pulse';
+        loadingDiv.innerHTML = `
+            <div class="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+            본문 전문을 불러오는 중입니다...
+        `;
+        modalContent.appendChild(loadingDiv);
+        
+        try {
+            const response = await fetch(`/fetch_full_content?url=${encodeURIComponent(link)}`);
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                modalContent.innerHTML = data.content;
+                // fetchedItems 업데이트하여 요약 시 전문 사용
+                const itemIndex = fetchedItems.findIndex(i => i.title === title);
+                if (itemIndex > -1) {
+                    fetchedItems[itemIndex].content = data.content;
+                }
+            } else {
+                loadingDiv.className = 'mt-6 p-4 bg-slate-800 border border-slate-700 rounded-2xl text-slate-500 text-xs';
+                loadingDiv.innerHTML = `원문에서 본문을 직접 추출하지 못했습니다. (사유: ${data.message})`;
+                loadingDiv.classList.remove('animate-pulse');
+            }
+        } catch (error) {
+            console.error('Content fetch error:', error);
+            loadingDiv.remove();
+        }
+    }
 }
 
 function hideModal() {
