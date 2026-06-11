@@ -25,8 +25,10 @@ class AIService:
             
             print(f"--- Available Models: {available_models}")
 
-            # 우선순위 후보군 (로그 확인 결과 2.0/2.5 계열이 주력임)
+            # 우선순위 후보군 (Gemini Pro 결제 시 무료로 사용 가능한 2.5 Pro를 최우선으로 사용)
             candidates = [
+                'models/gemini-2.5-pro',
+                'gemini-2.5-pro',
                 'models/gemini-2.5-flash',
                 'models/gemini-2.0-flash',
                 'models/gemini-1.5-flash',
