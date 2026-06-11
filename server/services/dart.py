@@ -1,4 +1,6 @@
 import os
+import re
+import html
 import requests
 import zipfile
 import io
@@ -94,28 +96,77 @@ class DartService:
             return "기업 정보를 수집할 수 없습니다."
         
         rcept_no = self.get_latest_report(corp_code)
-        
+
         overview = f"### [기업 기본 정보: {info['corp_name']}]\n\n"
         overview += f"- **대표이사**: {info.get('ceo_nm', '정보 없음')}\n"
         overview += f"- **업종**: {info.get('induty_name', '정보 없음')}\n"
         overview += f"- **주요 사업**: {info.get('main_biz', '정보 없음')}\n"
         overview += f"- **홈페이지**: {info.get('hm_url', '정보 없음')}\n"
-        
+
         if rcept_no:
-            overview += f"\n### [최신 사업보고서 분석 데이터 (보고서 번호: {rcept_no})]\n"
-            overview += "이 보고서에는 기업의 상세한 사업 현황, 시장 점유율, 위험 요인 및 재무 상태가 포함되어 있습니다.\n"
-            overview += "분석 보고서 작성 시 이 데이터의 핵심 지표들을 활용합니다.\n"
-        
+            business_content = self.get_full_business_content(rcept_no)
+            overview += f"\n### [최신 사업보고서 - 사업의 내용 (보고서 번호: {rcept_no})]\n\n"
+            if business_content:
+                overview += business_content
+            else:
+                overview += "사업보고서 원문에서 '사업의 내용' 섹션을 가져오지 못했습니다.\n"
+
         return overview
 
-    def get_full_business_content(self, corp_code):
-        """DART 사업보고서의 '사업의 내용' 섹션을 가능한 상세히 추출합니다."""
-        # 이 부분은 실제로는 DART의 리포트 뷰어 HTML을 파싱해야 하므로
-        # 여기서는 최신 보고서의 주요 지표 요약 API를 활용하거나 상세 안내를 제공합니다.
-        rcept_no = self.get_latest_report(corp_code)
+    def get_full_business_content(self, rcept_no):
+        """DART 사업보고서 원문(document.xml)에서 'II. 사업의 내용' 섹션 텍스트를 추출합니다."""
         if not rcept_no:
-            return "최신 사업보고서를 찾을 수 없습니다."
-            
-        return f"현재 {corp_code} 기업의 최신 공시(보고서 번호: {rcept_no})에서 '사업의 내용' 데이터를 정밀 분석 중입니다. 해당 섹션에는 제품 및 서비스의 특성, 원재료 현황, 생산 설비, 매출 실적 및 시장 점유율 등 기업의 본질적인 경쟁력을 파악할 수 있는 모든 핵심 텍스트가 포함되어 있습니다."
+            return None
+
+        url = f"https://opendart.fss.or.kr/api/document.xml?crtfc_key={self.api_key}&rcept_no={rcept_no}"
+        try:
+            response = requests.get(url, timeout=30)
+            if response.status_code != 200:
+                print(f"--- DART Document API HTTP Error: {response.status_code}")
+                return None
+
+            with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+                xml_name = next((n for n in z.namelist() if n.lower().endswith('.xml')), None)
+                if not xml_name:
+                    return None
+                raw = z.read(xml_name)
+
+            try:
+                text = raw.decode('euc-kr')
+            except UnicodeDecodeError:
+                text = raw.decode('utf-8', errors='ignore')
+
+            # 문서 내 섹션 제목들을 순서대로 찾아 '사업의 내용' 구간만 추출
+            titles = list(re.finditer(r'<TITLE[^>]*>(.*?)</TITLE>', text, re.IGNORECASE | re.DOTALL))
+
+            start, end = None, len(text)
+            for m in titles:
+                title_text = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+                if start is None:
+                    if '사업의 내용' in title_text:
+                        start = m.end()
+                else:
+                    end = m.start()
+                    break
+
+            if start is None:
+                print("--- '사업의 내용' 섹션을 보고서에서 찾지 못했습니다.")
+                return None
+
+            section_html = text[start:end]
+            section_text = re.sub(r'<[^>]+>', '\n', section_html)
+            section_text = html.unescape(section_text)
+            section_text = re.sub(r'[ \t]+', ' ', section_text)
+            section_text = re.sub(r'\n\s*\n+', '\n', section_text).strip()
+
+            # AI 프롬프트 길이 제한을 고려한 트리밍
+            max_len = 12000
+            if len(section_text) > max_len:
+                section_text = section_text[:max_len] + "\n... (이하 생략)"
+
+            return section_text
+        except Exception as e:
+            print(f"DART Document API Error: {e}")
+            return None
 
 dart_service = DartService()
