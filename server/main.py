@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .services.dart import dart_service
 from .services.naver import naver_service
 from .services.ai import ai_service
+from .services import web_utils
 
 app = FastAPI()
 
@@ -37,62 +38,36 @@ async def fetch_full_content(url: str):
     """URL의 본문 내용을 최대한 전문으로 추출하여 반환합니다."""
     if not url or url == "#" or "youtube.com" in url:
         return {"status": "error", "message": "본문을 추출할 수 없는 링크입니다."}
-    
+
     try:
         import requests
-        from bs4 import BeautifulSoup
-        import re
 
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        }
-        
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=web_utils.DEFAULT_HEADERS, timeout=10)
         response.raise_for_status()
-        
-        # 인코딩 처리
+
         content_type = response.headers.get('content-type', '').lower()
         if 'charset' not in content_type:
             response.encoding = response.apparent_encoding
-        
-        # lxml 대신 html.parser 사용 (호환성)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # 불필요한 태그 제거
-        for s in soup(['script', 'style', 'header', 'footer', 'nav', 'aside', 'iframe', 'button', 'input', 'form', 'meta']):
-            s.decompose()
-            
-        content_selectors = [
-            '#dic_area', '#articleBodyContents', '#newsct_article', '.newsct_article',
-            '#articeBody', '#articleBody', '.article_body', '.article-body',
-            '#content', '.post-content', '.post_content', '.entry-content',
-            '.viewer_content', '.se-main-container', '.post_article',
-            'article', 'main', '#main-content', '.main-content'
-        ]
-        
-        content_text = ""
-        for selector in content_selectors:
-            found = soup.select_one(selector)
-            if found:
-                for extra in found.select('.comment, .reply, .ad, .social, .tag, .share'):
-                    extra.decompose()
-                content_text = found.get_text(separator='\n', strip=True)
-                if len(content_text) > 300: break
-        
-        if not content_text:
-            p_tags = soup.find_all('p')
-            content_text = "\n".join([p.get_text(strip=True) for p in p_tags if len(p.get_text(strip=True)) > 30])
 
-        content_text = re.sub(r'\n\s*\n+', '\n\n', content_text).strip()
+        content_text = web_utils.extract_main_text(response.text)
 
         if not content_text or len(content_text) < 100:
             return {"status": "error", "message": "본문 내용을 충분히 추출하지 못했습니다."}
-            
+
         return {"status": "success", "content": content_text}
-        
+
     except Exception as e:
         print(f"Error in fetch_full_content: {e}")
         return {"status": "error", "message": f"본문 추출 중 오류: {str(e)}"}
+
+def _format_pub_date(pub_date_str):
+    """Naver API의 RFC822 날짜 문자열을 'YYYY-MM-DD'로 변환합니다."""
+    try:
+        from email.utils import parsedate_to_datetime
+        return parsedate_to_datetime(pub_date_str).strftime("%Y-%m-%d")
+    except Exception:
+        return pub_date_str
+
 
 @app.get("/search")
 async def search_info(corp_name: str):
@@ -103,9 +78,12 @@ async def search_info(corp_name: str):
         if not corp_code:
             return {"status": "error", "message": f"'{corp_name}' 기업 코드를 찾을 수 없습니다. (DART API 키 확인 필요)"}
 
-        # 2. DART 기업 개요
+        # 2. DART 기업 개요 및 회사 정보
         dart_info = dart_service.get_company_overview(corp_code)
-        
+        company_info = dart_service.get_company_info(corp_code) or {}
+        stock_code = company_info.get('stock_code')
+        hm_url = company_info.get('hm_url')
+
         # 3. 네이버 뉴스 검색
         news_items = naver_service.search_news(corp_name, display=10)
         biz_news_items = naver_service.search_news(f"{corp_name} 사업", display=5)
@@ -117,8 +95,35 @@ async def search_info(corp_name: str):
         if dart_info and "수집할 수 없습니다" not in dart_info:
             results.append({"id": "dart_0", "type": "DART", "title": "[공시] 기업 개요 및 주요 사업", "content": dart_info})
 
-        for i, item in enumerate(news_items + biz_news_items):
-            results.append({"id": f"news_{i}", "type": "NEWS", "title": item['title'], "content": item['description'], "link": item.get('link', '#')})
+        # 3-1. DART 주요사항보고서/증권신고서 발췌
+        major_filings = dart_service.get_major_filings(corp_code)
+        if major_filings:
+            results.append({"id": "dart_major_0", "type": "DART_MAJOR", "title": "[공시] 최근 주요사항보고서/증권신고서", "content": major_filings})
+
+        # 3-2. 네이버 증권 - 기업현황/매출구성/종목뉴스 (정성적 정보)
+        if stock_code:
+            stock_info = naver_service.get_stock_info(stock_code)
+            if stock_info:
+                results.append({"id": "stock_0", "type": "STOCK", "title": "[네이버 증권] 기업현황 및 종목뉴스", "content": stock_info})
+
+        # 3-3. 기업 공식 홈페이지 - IR/뉴스룸/회사소개
+        if hm_url:
+            site_summary = web_utils.get_company_site_summary(hm_url)
+            if site_summary:
+                results.append({"id": "ir_0", "type": "IR", "title": "[기업 홈페이지] IR/뉴스룸/회사소개", "content": site_summary})
+
+        all_news = news_items + biz_news_items
+        for i, item in enumerate(all_news):
+            date_str = _format_pub_date(item.get('pubDate', ''))
+            content = f"[{date_str}] {item['description']}" if date_str else item['description']
+
+            # 상위 3건은 본문 전문을 추가로 가져와 함께 제공
+            if i < 3:
+                full_text = web_utils.fetch_url_text(item.get('link', '#'), max_len=1500)
+                if full_text:
+                    content += f"\n\n[본문]\n{full_text}"
+
+            results.append({"id": f"news_{i}", "type": "NEWS", "title": item['title'], "content": content, "link": item.get('link', '#')})
 
         for i, item in enumerate(blog_items):
             results.append({"id": f"blog_{i}", "type": "BLOG", "title": item['title'], "content": item['description'], "link": item.get('link', '#')})
@@ -165,30 +170,60 @@ async def analyze_company(corp_name: str):
             yield json.dumps({"status": "error", "message": f"'{corp_name}'에 해당하는 기업 코드를 찾을 수 없습니다."}) + "\n"
             return
 
-        # 2단계: DART 데이터 수집 (개요 정보 추가)
+        # 2단계: DART 데이터 수집 (개요/사업내용 + 주요사항보고서/증권신고서)
         yield json.dumps({"status": "progress", "message": "DART 기업 정보를 수집하고 있습니다..."}) + "\n"
         dart_info = dart_service.get_company_overview(corp_code)
         rcept_no = dart_service.get_latest_report(corp_code)
-        dart_summary = f"DART 기업정보: {dart_info}\n최근 보고서 번호: {rcept_no}"
+        company_info = dart_service.get_company_info(corp_code) or {}
+        stock_code = company_info.get('stock_code')
+        hm_url = company_info.get('hm_url')
+
+        data_blocks = [f"## DART 기업 개요 및 사업의 내용\n{dart_info}"]
+
+        major_filings = dart_service.get_major_filings(corp_code)
+        if major_filings:
+            data_blocks.append(major_filings)
         await asyncio.sleep(0.5)
 
-        # 3단계: 네이버 뉴스 수집 (검색어 최적화 및 최신순 정렬)
-        yield json.dumps({"status": "progress", "message": "최신 뉴스 및 시장 리포트를 분석하고 있습니다..."}) + "\n"
-        # '삼성전자' 키워드로 최신 뉴스 검색
+        # 3단계: 네이버 증권/뉴스/리포트 수집
+        yield json.dumps({"status": "progress", "message": "최신 뉴스 및 시장 정보를 분석하고 있습니다..."}) + "\n"
+
+        if stock_code:
+            stock_info = naver_service.get_stock_info(stock_code)
+            if stock_info:
+                data_blocks.append(stock_info)
+
+        if hm_url:
+            site_summary = web_utils.get_company_site_summary(hm_url)
+            if site_summary:
+                data_blocks.append(site_summary)
+
         news_items = naver_service.search_news(corp_name)
-        # '삼성전자 리포트/전망' 키워드로 추가 검색
         report_items = naver_service.search_reports(corp_name)
-        
         all_news = news_items + report_items
-        news_content = "\n".join([f"- {item['title']}: {item['description']}" for item in all_news])
+
+        news_lines = []
+        for i, item in enumerate(all_news):
+            date_str = _format_pub_date(item.get('pubDate', ''))
+            line = f"- [{date_str}] {item['title']}\n  핵심: {item['description']}"
+            if i < 3:
+                full_text = web_utils.fetch_url_text(item.get('link', '#'), max_len=1500)
+                if full_text:
+                    line += f"\n  본문: {full_text}"
+            news_lines.append(line)
+
+        if news_lines:
+            data_blocks.append("## 관련 뉴스\n" + "\n".join(news_lines))
+
+        combined_data = "\n\n".join(data_blocks)
         await asyncio.sleep(0.5)
 
         # 4단계: Gemini AI 요약 (스트리밍 적용)
         yield json.dumps({"status": "progress", "message": "Gemini AI가 정보를 분석하여 요약하고 있습니다. 잠시만 기다려 주세요..."}) + "\n"
-        
+
         full_summary = ""
         # AI 요약 내용을 실시간으로 전달하기 위한 status: partial 추가
-        for chunk in ai_service.summarize_corporate_info_stream(corp_name, dart_summary, news_content):
+        for chunk in ai_service.summarize_corporate_info_stream(corp_name, combined_data, ""):
             full_summary += chunk
             yield json.dumps({"status": "partial", "data": {"summary": full_summary}}) + "\n"
         
