@@ -236,24 +236,30 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let lineBuffer = '';
+        let accumulatedSummary = '';
 
         while (true) {
             const { value, done } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
+            lineBuffer += decoder.decode(value, { stream: true });
+            const lines = lineBuffer.split('\n');
+            lineBuffer = lines.pop(); // 마지막 불완전한 줄은 버퍼에 보관
 
             for (const line of lines) {
                 if (!line.trim()) continue;
                 try {
                     const data = JSON.parse(line);
                     if (data.status === 'partial') {
+                        accumulatedSummary += data.data.delta;
                         statusArea.classList.add('hidden');
                         resultArea.classList.remove('hidden');
-                        summaryContent.innerHTML = marked.parse(data.data.summary);
+                        summaryContent.innerHTML = marked.parse(accumulatedSummary);
                         window.scrollTo({ top: resultArea.offsetTop - 100, behavior: 'smooth' });
                     } else if (data.status === 'complete') {
+                        // complete 이벤트의 full summary로 최종 렌더링 (누락 없이 완전한 텍스트)
+                        summaryContent.innerHTML = marked.parse(data.data.summary);
                         document.getElementById('resultTitle').innerText = `${corpName} 분석 결과`;
                     }
                 } catch (e) { console.error(e); }

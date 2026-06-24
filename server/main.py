@@ -73,8 +73,8 @@ async def summarize_selected(request: SummarizeRequest):
         full_summary = ""
         for chunk in ai_service.summarize_corporate_info_stream(request.corp_name, "선택된 요약 정보 세트", full_content):
             full_summary += chunk
-            yield json.dumps({"status": "partial", "data": {"summary": full_summary}}) + "\n"
-        
+            yield json.dumps({"status": "partial", "data": {"delta": chunk}}) + "\n"
+
         yield json.dumps({"status": "complete", "data": {"summary": full_summary}}) + "\n"
 
     return StreamingResponse(event_generator(), media_type="application/x-ndjson")
@@ -115,14 +115,13 @@ async def analyze_company(corp_name: str):
         yield json.dumps({"status": "progress", "message": "Gemini AI가 정보를 분석하여 요약하고 있습니다. 잠시만 기다려 주세요..."}) + "\n"
 
         full_summary = ""
-        # AI 요약 내용을 실시간으로 전달하기 위한 status: partial 추가
         for chunk in ai_service.summarize_corporate_info_stream(corp_name, combined_data, ""):
             full_summary += chunk
-            yield json.dumps({"status": "partial", "data": {"summary": full_summary}}) + "\n"
-        
-        # 5단계: 최종 완료 결과 전송
+            # delta만 전송 → 페이로드 크기 일정하게 유지
+            yield json.dumps({"status": "partial", "data": {"delta": chunk}}) + "\n"
+
         yield json.dumps({
-            "status": "complete", 
+            "status": "complete",
             "data": {
                 "summary": full_summary,
                 "sources": {
