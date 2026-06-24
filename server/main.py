@@ -52,10 +52,10 @@ async def search_info(corp_name: str):
         if prospectus:
             results.append({"id": "dart_prospectus", "type": "투자설명서", "title": "[발행공시] 투자설명서", "content": prospectus})
 
-        # 3. IR / 기업설명회 공시
-        ir_materials = dart_service.get_ir_materials(corp_code)
-        if ir_materials:
-            results.append({"id": "dart_ir", "type": "IR", "title": "[IR] 기업설명회 공시", "content": ir_materials})
+        # 3. IR 자료 (공식 홈페이지 스크래핑 + DART 공시)
+        ir_content, ir_url = dart_service.get_ir_materials(corp_code)
+        if ir_content:
+            results.append({"id": "dart_ir", "type": "IR", "title": "[IR] 기업설명회 · 실적발표 자료", "content": ir_content, "link": ir_url or ""})
 
         return {"status": "success", "items": results}
     except Exception as e:
@@ -103,9 +103,9 @@ async def analyze_company(corp_name: str):
         if prospectus:
             data_blocks.append(prospectus)
 
-        ir_materials = dart_service.get_ir_materials(corp_code)
-        if ir_materials:
-            data_blocks.append(ir_materials)
+        ir_content, _ = dart_service.get_ir_materials(corp_code)
+        if ir_content:
+            data_blocks.append(ir_content)
         await asyncio.sleep(0.5)
 
         combined_data = "\n\n".join(data_blocks)

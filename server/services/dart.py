@@ -191,7 +191,40 @@ class DartService:
             return None
 
     def get_ir_materials(self, corp_code):
-        """최근 2년 이내 기업설명회(IR) 공시 목록과 내용을 가져옵니다."""
+        """기업 IR 자료를 수집합니다. 공식 IR 홈페이지 스크래핑 우선, DART 공시 목록 보완.
+        Returns: (content_text, ir_page_url)
+        """
+        from .ir_scraper import get_ir_content
+
+        info = self.get_company_info(corp_code)
+        corp_name = info.get('corp_name', '') if info else ''
+        hm_url = info.get('hm_url', '') if info else ''
+
+        ir_text, ir_url, is_link_only = get_ir_content(corp_name, hm_url)
+
+        # DART 기업설명회 공시 목록도 병행 수집
+        dart_ir_list = self._get_dart_ir_list(corp_code)
+
+        result_parts = []
+
+        if ir_text:
+            result_parts.append(f"## IR 자료 (공식 IR 홈페이지)\n\n{ir_text}")
+        elif is_link_only and ir_url:
+            result_parts.append(
+                f"## IR 자료 링크\n\n해당 기업의 공식 IR 홈페이지에서 실적발표 자료를 직접 확인하세요.\n- **IR 홈페이지**: {ir_url}"
+            )
+
+        if dart_ir_list:
+            result_parts.append(dart_ir_list)
+
+        if not result_parts:
+            return None, ir_url
+
+        content = "\n\n".join(result_parts)
+        return content, ir_url
+
+    def _get_dart_ir_list(self, corp_code):
+        """DART에서 최근 2년 기업설명회 공시 목록을 가져옵니다."""
         bgn_de = (datetime.now() - timedelta(days=365 * 2)).strftime('%Y%m%d')
         url = f"https://opendart.fss.or.kr/api/list.json?crtfc_key={self.api_key}&corp_code={corp_code}&bgn_de={bgn_de}"
         try:
@@ -203,27 +236,10 @@ class DartService:
                      if any(k in i.get('report_nm', '') for k in ir_keywords)]
             if not items:
                 return None
-
-            blocks = []
-            total_len = 0
-            for item in items[:5]:
-                text = self._extract_full_text(item['rcept_no'], max_len=1500)
-                # 텍스트가 CSS/HTML 위주라 실질적 내용이 없으면 제목만 표시
-                if text and len(text) > 100 and not text.strip().startswith('.xforms'):
-                    block = f"### [{item['report_nm']} ({item['rcept_dt']})]\n\n{text}"
-                else:
-                    block = f"- **{item['report_nm']}** (공시일: {item['rcept_dt']})"
-
-                blocks.append(block)
-                total_len += len(block)
-                if total_len >= 5000:
-                    break
-
-            if not blocks:
-                return None
-            return "## IR / 기업설명회 공시\n\n" + "\n\n".join(blocks)
+            lines = [f"- **{i['report_nm']}** (공시일: {i['rcept_dt']})" for i in items[:8]]
+            return "### DART 기업설명회 공시 목록\n\n" + "\n".join(lines)
         except Exception as e:
-            print(f"DART IR Materials Error: {e}")
+            print(f"DART IR List Error: {e}")
             return None
 
     def _get_filing_list(self, corp_code, pblntf_ty, label, limit=2, name_filter=None):
