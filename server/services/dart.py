@@ -95,10 +95,10 @@ class DartService:
             if response.get('status') == '000':
                 for item in response.get('list', []):
                     if "사업보고서" in item.get('report_nm', ''):
-                        return item.get('rcept_no')
+                        return item.get('rcept_no'), item.get('report_nm')
         except Exception as e:
             print(f"DART List API Error: {e}")
-        return None
+        return None, None
 
     def get_company_info(self, corp_code):
         """DART 기업개요 API에서 기업 기본 정보를 가져옵니다."""
@@ -126,12 +126,12 @@ class DartService:
         return None
 
     def get_company_overview(self, corp_code):
-        """기업 기본정보 + 최신 사업보고서 주요 섹션을 조합하여 반환합니다."""
+        """기업 기본정보 + 최신 사업보고서(회사의 개요 + 사업의 내용)를 반환합니다."""
         info = self.get_company_info(corp_code)
         if not info:
             return "기업 정보를 수집할 수 없습니다."
 
-        rcept_no = self.get_latest_report(corp_code)
+        rcept_no, report_nm = self.get_latest_report(corp_code)
 
         overview = f"### [기업 기본 정보: {info['corp_name']}]\n\n"
         overview += f"- **대표이사**: {info.get('ceo_nm', '정보 없음')}\n"
@@ -143,7 +143,7 @@ class DartService:
 
         if rcept_no:
             section_content = self.extract_sections(rcept_no, ['회사의 개요', '사업의 내용'], max_len=12000)
-            overview += f"\n### [최신 사업보고서 (접수번호: {rcept_no})]\n\n"
+            overview += f"\n### [{report_nm} (접수번호: {rcept_no})]\n\n"
             if section_content:
                 overview += section_content
             else:
@@ -153,48 +153,81 @@ class DartService:
 
         return overview
 
-    def get_major_filings(self, corp_code):
-        """최근 주요사항보고서/증권신고서 목록을 조회하여 내용을 발췌합니다."""
-        filings = []
-        filings += self._get_filing_list(corp_code, 'B', '주요사항보고서', limit=3)
-        filings += self._get_filing_list(corp_code, 'C', '증권신고서', limit=2, name_filter='증권신고서')
+    def get_investment_prospectus(self, corp_code):
+        """최근 3년 이내 투자설명서를 가져옵니다 (발행공시 C)."""
+        bgn_de = (datetime.now() - timedelta(days=365 * 3)).strftime('%Y%m%d')
+        url = f"https://opendart.fss.or.kr/api/list.json?crtfc_key={self.api_key}&corp_code={corp_code}&pblntf_ty=C&bgn_de={bgn_de}"
+        try:
+            resp = requests.get(url, timeout=10).json()
+            if resp.get('status') != '000':
+                return None
+            items = [i for i in resp.get('list', []) if '투자설명서' in i.get('report_nm', '')]
+            if not items:
+                return None
 
-        if not filings:
-            return None
+            blocks = []
+            total_len = 0
+            for item in items[:3]:
+                section = self.extract_sections(
+                    item['rcept_no'],
+                    ['모집 또는 매출에 관한 일반사항', '투자위험요소', '자금의 사용목적'],
+                    max_len=4000
+                )
+                if section:
+                    block = f"### [{item['report_nm']} ({item['rcept_dt']})]\n\n{section}"
+                else:
+                    block = f"- {item['report_nm']} ({item['rcept_dt']})"
 
-        max_total_len = 6000
-        blocks = []
-        total_len = 0
-        for filing in filings:
-            # 주요사항보고서는 전체 본문 추출, 증권신고서는 사업 관련 섹션 추출
-            if '주요사항' in filing['report_nm']:
-                section = self._extract_full_text(filing['rcept_no'], max_len=2000)
-            else:
-                section = self.extract_sections(filing['rcept_no'], ['회사의 개요', '사업의 내용'], max_len=3000)
-
-            if section:
-                block = f"### [{filing['report_nm']} ({filing['rcept_dt']})]\n\n{section}"
-            else:
-                block = f"- {filing['report_nm']} ({filing['rcept_dt']})"
-
-            if total_len + len(block) > max_total_len:
-                remaining = max_total_len - total_len
-                if remaining <= 0:
+                blocks.append(block)
+                total_len += len(block)
+                if total_len >= 8000:
                     break
-                block = block[:remaining] + "\n... (이하 생략)"
 
-            blocks.append(block)
-            total_len += len(block)
-            if total_len >= max_total_len:
-                break
-
-        if not blocks:
+            if not blocks:
+                return None
+            return "## 투자설명서\n\n" + "\n\n".join(blocks)
+        except Exception as e:
+            print(f"DART Prospectus Error: {e}")
             return None
 
-        return "## 최근 주요 공시\n\n" + "\n\n".join(blocks)
+    def get_ir_materials(self, corp_code):
+        """최근 2년 이내 기업설명회(IR) 공시 목록과 내용을 가져옵니다."""
+        bgn_de = (datetime.now() - timedelta(days=365 * 2)).strftime('%Y%m%d')
+        url = f"https://opendart.fss.or.kr/api/list.json?crtfc_key={self.api_key}&corp_code={corp_code}&bgn_de={bgn_de}"
+        try:
+            resp = requests.get(url, timeout=10).json()
+            if resp.get('status') != '000':
+                return None
+            ir_keywords = ['기업설명회', 'IR', '투자자설명회', '기업설명']
+            items = [i for i in resp.get('list', [])
+                     if any(k in i.get('report_nm', '') for k in ir_keywords)]
+            if not items:
+                return None
+
+            blocks = []
+            total_len = 0
+            for item in items[:5]:
+                text = self._extract_full_text(item['rcept_no'], max_len=1500)
+                # 텍스트가 CSS/HTML 위주라 실질적 내용이 없으면 제목만 표시
+                if text and len(text) > 100 and not text.strip().startswith('.xforms'):
+                    block = f"### [{item['report_nm']} ({item['rcept_dt']})]\n\n{text}"
+                else:
+                    block = f"- **{item['report_nm']}** (공시일: {item['rcept_dt']})"
+
+                blocks.append(block)
+                total_len += len(block)
+                if total_len >= 5000:
+                    break
+
+            if not blocks:
+                return None
+            return "## IR / 기업설명회 공시\n\n" + "\n\n".join(blocks)
+        except Exception as e:
+            print(f"DART IR Materials Error: {e}")
+            return None
 
     def _get_filing_list(self, corp_code, pblntf_ty, label, limit=2, name_filter=None):
-        """list.json에서 특정 공시유형의 최근(1년 이내) 보고서 목록을 가져옵니다."""
+        """list.json에서 특정 공시유형의 최근(bgn_de 이후) 보고서 목록을 가져옵니다."""
         bgn_de = (datetime.now() - timedelta(days=365)).strftime('%Y%m%d')
         url = f"https://opendart.fss.or.kr/api/list.json?crtfc_key={self.api_key}&corp_code={corp_code}&pblntf_ty={pblntf_ty}&bgn_de={bgn_de}"
         try:
@@ -233,8 +266,17 @@ class DartService:
             return None
         return max(xml_files, key=lambda n: z.getinfo(n).file_size)
 
+    def _decode_raw(self, raw):
+        """바이트 데이터를 텍스트로 디코딩합니다. UTF-8 우선, 실패 시 CP949."""
+        for enc in ['utf-8', 'cp949']:
+            try:
+                return raw.decode(enc)
+            except (UnicodeDecodeError, LookupError):
+                continue
+        return raw.decode('utf-8', errors='ignore')
+
     def _extract_full_text(self, rcept_no, max_len=2000):
-        """DART 보고서 원문 전체를 텍스트로 추출합니다 (주요사항보고서 등 단문 보고서용)."""
+        """DART 보고서 원문 전체를 텍스트로 추출합니다."""
         if not rcept_no:
             return None
         url = f"https://opendart.fss.or.kr/api/document.xml?crtfc_key={self.api_key}&rcept_no={rcept_no}"
@@ -247,10 +289,7 @@ class DartService:
                 if not xml_name:
                     return None
                 raw = z.read(xml_name)
-            try:
-                text = raw.decode('euc-kr')
-            except UnicodeDecodeError:
-                text = raw.decode('utf-8', errors='ignore')
+            text = self._decode_raw(raw)
             result = self._clean_html_text(text)
             if len(result) > max_len:
                 result = result[:max_len] + "\n... (이하 생략)"
@@ -277,10 +316,7 @@ class DartService:
                     return None
                 raw = z.read(xml_name)
 
-            try:
-                text = raw.decode('euc-kr')
-            except UnicodeDecodeError:
-                text = raw.decode('utf-8', errors='ignore')
+            text = self._decode_raw(raw)
 
             titles = list(re.finditer(r'<TITLE[^>]*>(.*?)</TITLE>', text, re.IGNORECASE | re.DOTALL))
             title_infos = [(m, re.sub(r'<[^>]+>', '', m.group(1)).strip()) for m in titles]
@@ -292,7 +328,6 @@ class DartService:
             parts = []
 
             if major_sections:
-                # 대제목 기준: 매칭된 섹션의 끝을 다음 대제목 시작으로 설정
                 for j, (i, m, tt) in enumerate(major_sections):
                     if any(target in tt for target in section_titles):
                         end = major_sections[j + 1][1].start() if j + 1 < len(major_sections) else len(text)

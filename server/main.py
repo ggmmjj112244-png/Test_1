@@ -40,15 +40,22 @@ async def search_info(corp_name: str):
         if not corp_code:
             return {"status": "error", "message": f"'{corp_name}' 기업 코드를 찾을 수 없습니다. (DART API 키 확인 필요)"}
 
-        dart_info = dart_service.get_company_overview(corp_code)
-
         results = []
-        if dart_info and "수집할 수 없습니다" not in dart_info:
-            results.append({"id": "dart_0", "type": "DART", "title": "[공시] 기업 개요 및 주요 사업", "content": dart_info})
 
-        major_filings = dart_service.get_major_filings(corp_code)
-        if major_filings:
-            results.append({"id": "dart_major_0", "type": "DART_MAJOR", "title": "[공시] 최근 주요사항보고서/증권신고서", "content": major_filings})
+        # 1. 정기공시 - 사업보고서 (회사의 개요 + 사업의 내용)
+        dart_info = dart_service.get_company_overview(corp_code)
+        if dart_info and "수집할 수 없습니다" not in dart_info:
+            results.append({"id": "dart_annual", "type": "사업보고서", "title": "[정기공시] 사업보고서", "content": dart_info})
+
+        # 2. 발행공시 - 투자설명서
+        prospectus = dart_service.get_investment_prospectus(corp_code)
+        if prospectus:
+            results.append({"id": "dart_prospectus", "type": "투자설명서", "title": "[발행공시] 투자설명서", "content": prospectus})
+
+        # 3. IR / 기업설명회 공시
+        ir_materials = dart_service.get_ir_materials(corp_code)
+        if ir_materials:
+            results.append({"id": "dart_ir", "type": "IR", "title": "[IR] 기업설명회 공시", "content": ir_materials})
 
         return {"status": "success", "items": results}
     except Exception as e:
@@ -84,16 +91,21 @@ async def analyze_company(corp_name: str):
             yield json.dumps({"status": "error", "message": f"'{corp_name}'에 해당하는 기업 코드를 찾을 수 없습니다."}) + "\n"
             return
 
-        # 2단계: DART 데이터 수집 (개요/사업내용 + 주요사항보고서/증권신고서)
-        yield json.dumps({"status": "progress", "message": "DART 기업 정보를 수집하고 있습니다..."}) + "\n"
+        # 2단계: DART 데이터 수집
+        yield json.dumps({"status": "progress", "message": "DART 사업보고서를 수집하고 있습니다..."}) + "\n"
         dart_info = dart_service.get_company_overview(corp_code)
-        rcept_no = dart_service.get_latest_report(corp_code)
+        rcept_no, _ = dart_service.get_latest_report(corp_code)
 
-        data_blocks = [f"## DART 기업 개요 및 사업의 내용\n{dart_info}"]
+        data_blocks = [f"## 사업보고서\n{dart_info}"]
 
-        major_filings = dart_service.get_major_filings(corp_code)
-        if major_filings:
-            data_blocks.append(major_filings)
+        yield json.dumps({"status": "progress", "message": "투자설명서 및 IR 자료를 수집하고 있습니다..."}) + "\n"
+        prospectus = dart_service.get_investment_prospectus(corp_code)
+        if prospectus:
+            data_blocks.append(prospectus)
+
+        ir_materials = dart_service.get_ir_materials(corp_code)
+        if ir_materials:
+            data_blocks.append(ir_materials)
         await asyncio.sleep(0.5)
 
         combined_data = "\n\n".join(data_blocks)
